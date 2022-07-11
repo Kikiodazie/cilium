@@ -1954,6 +1954,14 @@ func init() {
       "description": "Response to a daemon configuration request. Contains the addressing\ninformation, k8s, node monitor and immutable and mutable configuration\nsettings.\n",
       "type": "object",
       "properties": {
+        "GROMaxSize": {
+          "description": "Maximum GRO size on workload facing devices",
+          "type": "integer"
+        },
+        "GSOMaxSize": {
+          "description": "Maximum GSO size on workload facing devices",
+          "type": "integer"
+        },
         "addressing": {
           "$ref": "#/definitions/NodeAddressing"
         },
@@ -2832,6 +2840,16 @@ func init() {
           "description": "Source of the IP entry and its metadata",
           "type": "string",
           "example": "k8s"
+        }
+      }
+    },
+    "IPV6BigTCP": {
+      "description": "Status of IPv6 BIG TCP\n\n+k8s:deepcopy-gen=true",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Is IPv6 BIG TCP enabled",
+          "type": "boolean"
         }
       }
     },
@@ -4006,6 +4024,10 @@ func init() {
         "ipam": {
           "description": "Status of IP address management",
           "$ref": "#/definitions/IPAMStatus"
+        },
+        "ipv6-big-tcp": {
+          "description": "Status of IPv6 BIG TCP",
+          "$ref": "#/definitions/IPV6BigTCP"
         },
         "kube-proxy-replacement": {
           "description": "Status of kube-proxy replacement",
@@ -6483,6 +6505,14 @@ func init() {
       "description": "Response to a daemon configuration request. Contains the addressing\ninformation, k8s, node monitor and immutable and mutable configuration\nsettings.\n",
       "type": "object",
       "properties": {
+        "GROMaxSize": {
+          "description": "Maximum GRO size on workload facing devices",
+          "type": "integer"
+        },
+        "GSOMaxSize": {
+          "description": "Maximum GSO size on workload facing devices",
+          "type": "integer"
+        },
         "addressing": {
           "$ref": "#/definitions/NodeAddressing"
         },
@@ -7423,6 +7453,16 @@ func init() {
           "description": "Source of the IP entry and its metadata",
           "type": "string",
           "example": "k8s"
+        }
+      }
+    },
+    "IPV6BigTCP": {
+      "description": "Status of IPv6 BIG TCP\n\n+k8s:deepcopy-gen=true",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Is IPv6 BIG TCP enabled",
+          "type": "boolean"
         }
       }
     },
@@ -8870,6 +8910,10 @@ func init() {
         "ipam": {
           "description": "Status of IP address management",
           "$ref": "#/definitions/IPAMStatus"
+        },
+        "ipv6-big-tcp": {
+          "description": "Status of IPv6 BIG TCP",
+          "$ref": "#/definitions/IPV6BigTCP"
         },
         "kube-proxy-replacement": {
           "description": "Status of kube-proxy replacement",

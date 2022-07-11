@@ -39,6 +39,7 @@ import (
 	"github.com/cilium/cilium/pkg/node/addressing"
 	nodemanager "github.com/cilium/cilium/pkg/node/manager"
 	nodestore "github.com/cilium/cilium/pkg/node/store"
+	"github.com/cilium/cilium/pkg/node/types"
 	nodeTypes "github.com/cilium/cilium/pkg/node/types"
 	"github.com/cilium/cilium/pkg/option"
 	"github.com/cilium/cilium/pkg/source"
@@ -324,6 +325,16 @@ func (n *NodeDiscovery) UpdateLocalNode() {
 	n.updateLocalNode()
 }
 
+// LocalNode syncs the localNode object with the information stored in the node
+// package and then returns a copy of the localNode object
+func (n *NodeDiscovery) LocalNode() *types.Node {
+	n.localNodeLock.Lock()
+	defer n.localNodeLock.Unlock()
+
+	n.fillLocalNode()
+	return n.localNode.DeepCopy()
+}
+
 // Close shuts down the node discovery engine
 func (n *NodeDiscovery) Close() {
 	n.Manager.Close()
@@ -549,6 +560,7 @@ func (n *NodeDiscovery) mutateNodeResource(nodeResource *ciliumv2.CiliumNode) er
 		nodeResource.Spec.ENI.VpcID = vpcID
 		nodeResource.Spec.ENI.FirstInterfaceIndex = getInt(defaults.ENIFirstInterfaceIndex)
 		nodeResource.Spec.ENI.UsePrimaryAddress = getBool(defaults.UseENIPrimaryAddress)
+		nodeResource.Spec.ENI.DisablePrefixDelegation = getBool(defaults.ENIDisableNodeLevelPD)
 
 		if c := n.NetConf; c != nil {
 			if c.IPAM.MinAllocate != 0 {
@@ -589,6 +601,10 @@ func (n *NodeDiscovery) mutateNodeResource(nodeResource *ciliumv2.CiliumNode) er
 
 			if c.ENI.UsePrimaryAddress != nil {
 				nodeResource.Spec.ENI.UsePrimaryAddress = c.ENI.UsePrimaryAddress
+			}
+
+			if c.ENI.DisablePrefixDelegation != nil {
+				nodeResource.Spec.ENI.DisablePrefixDelegation = c.ENI.DisablePrefixDelegation
 			}
 
 			nodeResource.Spec.ENI.DeleteOnTermination = c.ENI.DeleteOnTermination

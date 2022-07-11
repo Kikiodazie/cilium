@@ -142,17 +142,17 @@
      - string
      - ``"/run/cilium/cgroupv2"``
    * - cleanBpfState
-     - Clean all eBPF datapath state from the initContainer of the cilium-agent DaemonSet. WARNING: Use with care!
+     - Clean all eBPF datapath state from the initContainer of the cilium-agent DaemonSet.  WARNING: Use with care!
      - bool
      - ``false``
    * - cleanState
-     - Clean all local Cilium state from the initContainer of the cilium-agent DaemonSet. Implies cleanBpfState: true. WARNING: Use with care!
+     - Clean all local Cilium state from the initContainer of the cilium-agent DaemonSet. Implies cleanBpfState: true.  WARNING: Use with care!
      - bool
      - ``false``
    * - cluster.id
-     - Unique ID of the cluster. Must be unique across all connected clusters and in the range of 1 to 255. Only required for Cluster Mesh.
+     - Unique ID of the cluster. Must be unique across all connected clusters and in the range of 1 to 255. Only required for Cluster Mesh, may be 0 if Cluster Mesh is not used.
      - int
-     - ``nil``
+     - ``0``
    * - cluster.name
      - Name of the cluster. Only required for Cluster Mesh.
      - string
@@ -277,6 +277,10 @@
      - Node tolerations for pod assignment on nodes with taints ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
      - list
      - ``[]``
+   * - clustermesh.apiserver.topologySpreadConstraints
+     - Pod topology spread constraints for clustermesh-apiserver
+     - list
+     - ``[]``
    * - clustermesh.apiserver.updateStrategy
      - clustermesh-apiserver update strategy
      - object
@@ -373,6 +377,10 @@
      - Disable the usage of CiliumEndpoint CRD.
      - string
      - ``"false"``
+   * - dnsPolicy
+     - DNS policy for Cilium agent pods. Ref: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-policy
+     - string
+     - ``""``
    * - dnsProxy.dnsRejectResponseCode
      - DNS response code for rejecting DNS requests, available options are '[nameError refused]'.
      - string
@@ -433,6 +441,10 @@
      - Enables masquerading of IPv4 traffic leaving the node from endpoints.
      - bool
      - ``true``
+   * - enableIPv6BIGTCP
+     - Enables IPv6 BIG TCP support which increases maximum GSO/GRO limits for nodes and pods
+     - bool
+     - ``false``
    * - enableIPv6Masquerade
      - Enables masquerading of IPv6 traffic leaving the node from endpoints.
      - bool
@@ -621,6 +633,10 @@
      - Node tolerations for cilium-etcd-operator scheduling to nodes with taints ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
      - list
      - ``[{"operator":"Exists"}]``
+   * - etcd.topologySpreadConstraints
+     - Pod topology spread constraints for cilium-etcd-operator
+     - list
+     - ``[]``
    * - etcd.updateStrategy
      - cilium-etcd-operator update strategy
      - object
@@ -645,6 +661,10 @@
      - extraConfig allows you to specify additional configuration parameters to be included in the cilium-config configmap.
      - object
      - ``{}``
+   * - extraContainers
+     - Additional containers added to the cilium DaemonSet.
+     - list
+     - ``[]``
    * - extraEnv
      - Additional agent container environment variables.
      - list
@@ -710,7 +730,7 @@
      - object
      - ``{"enabled":null,"port":9965,"serviceAnnotations":{},"serviceMonitor":{"annotations":{},"enabled":false,"interval":"10s","labels":{}}}``
    * - hubble.metrics.enabled
-     - Configures the list of metrics to collect. If empty or null, metrics are disabled. Example:   enabled:   - dns:query;ignoreAAAA   - drop   - tcp   - flow   - icmp   - http You can specify the list of metrics from the helm CLI:   --set metrics.enabled="{dns:query;ignoreAAAA,drop,tcp,flow,icmp,http}"
+     - Configures the list of metrics to collect. If empty or null, metrics are disabled. Example:    enabled:   - dns:query;ignoreAAAA   - drop   - tcp   - flow   - icmp   - http  You can specify the list of metrics from the helm CLI:    --set metrics.enabled="{dns:query;ignoreAAAA,drop,tcp,flow,icmp,http}"
      - string
      - ``nil``
    * - hubble.metrics.port
@@ -768,7 +788,7 @@
    * - hubble.relay.image
      - Hubble-relay container image.
      - object
-     - ``{"digest":"","override":null,"pullPolicy":"Always","repository":"quay.io/cilium/hubble-relay","tag":"latest","useDigest":false}``
+     - ``{"digest":"","override":null,"pullPolicy":"Always","repository":"quay.io/cilium/hubble-relay-ci","tag":"latest","useDigest":false}``
    * - hubble.relay.listenHost
      - Host to listen to. Specify an empty string to bind to all the interfaces.
      - string
@@ -873,6 +893,10 @@
      - Node tolerations for pod assignment on nodes with taints ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
      - list
      - ``[]``
+   * - hubble.relay.topologySpreadConstraints
+     - Pod topology spread constraints for hubble-relay
+     - list
+     - ``[]``
    * - hubble.relay.updateStrategy
      - hubble-relay update strategy
      - object
@@ -906,7 +930,7 @@
      - string
      - ``"helm"``
    * - hubble.tls.auto.schedule
-     - Schedule for certificates regeneration (regardless of their expiration date). Only used if method is "cronJob". If nil, then no recurring job will be created. Instead, only the one-shot job is deployed to generate the certificates at installation time. Defaults to midnight of the first day of every fourth month. For syntax, see https://kubernetes.io/docs/tasks/job/automated-tasks-with-cron-jobs/#schedule
+     - Schedule for certificates regeneration (regardless of their expiration date). Only used if method is "cronJob". If nil, then no recurring job will be created. Instead, only the one-shot job is deployed to generate the certificates at installation time.  Defaults to midnight of the first day of every fourth month. For syntax, see https://kubernetes.io/docs/tasks/job/automated-tasks-with-cron-jobs/#schedule
      - string
      - ``"0 0 1 */4 *"``
    * - hubble.tls.ca
@@ -1043,6 +1067,10 @@
      - ``{"cert":"","key":""}``
    * - hubble.ui.tolerations
      - Node tolerations for pod assignment on nodes with taints ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+     - list
+     - ``[]``
+   * - hubble.ui.topologySpreadConstraints
+     - Pod topology spread constraints for hubble-ui
      - list
      - ``[]``
    * - hubble.ui.updateStrategy
@@ -1277,6 +1305,10 @@
      - Affinity for cilium-operator
      - object
      - ``{"podAntiAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"labelSelector":{"matchLabels":{"io.cilium/app":"operator"}},"topologyKey":"kubernetes.io/hostname"}]}}``
+   * - operator.dnsPolicy
+     - DNS policy for Cilium operator pods. Ref: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-policy
+     - string
+     - ``""``
    * - operator.enabled
      - Enable the cilium-operator component (required).
      - bool
@@ -1401,6 +1433,10 @@
      - Node tolerations for cilium-operator scheduling to nodes with taints ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
      - list
      - ``[{"operator":"Exists"}]``
+   * - operator.topologySpreadConstraints
+     - Pod topology spread constraints for cilium-operator
+     - list
+     - ``[]``
    * - operator.unmanagedPodWatcher.intervalSeconds
      - Interval, in seconds, to check if there are any pods that are not managed by Cilium.
      - int

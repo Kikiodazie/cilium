@@ -107,6 +107,7 @@ cilium-agent [flags]
       --enable-ipv4-fragment-tracking                           Enable IPv4 fragments tracking for L4-based lookups (default true)
       --enable-ipv4-masquerade                                  Masquerade IPv4 traffic from endpoints leaving the host (default true)
       --enable-ipv6                                             Enable IPv6 support (default true)
+      --enable-ipv6-big-tcp                                     Enable IPv6 BIG TCP option which increases device's maximum GRO/GSO limits
       --enable-ipv6-masquerade                                  Masquerade IPv6 traffic from endpoints leaving the host (default true)
       --enable-ipv6-ndp                                         Enable IPv6 NDP support
       --enable-k8s-api-discovery                                Enable discovery of Kubernetes API groups and resources with the discovery API
@@ -202,7 +203,7 @@ cilium-agent [flags]
       --k8s-service-proxy-name string                           Value of K8s service-proxy-name label for which Cilium handles the services (empty = all services without service.kubernetes.io/service-proxy-name label)
       --k8s-watcher-endpoint-selector string                    K8s endpoint watcher will watch for these k8s endpoints (default "metadata.name!=kube-scheduler,metadata.name!=kube-controller-manager,metadata.name!=etcd-operator,metadata.name!=gcp-controller-manager")
       --keep-config                                             When restoring state, keeps containers' configuration in place
-      --kube-proxy-replacement string                           auto-enable available features for kube-proxy replacement ("probe"), or enable only selected features (will panic if any selected feature cannot be enabled) ("partial") or enable all features (will panic if any feature cannot be enabled) ("strict"), or completely disable it (ignores any selected feature) ("disabled") (default "partial")
+      --kube-proxy-replacement string                           enable only selected features (will panic if any selected feature cannot be enabled) ("partial"), or enable all features (will panic if any feature cannot be enabled) ("strict"), or completely disable it (ignores any selected feature) ("disabled") (default "partial")
       --kube-proxy-replacement-healthz-bind-address string      The IP address with port for kube-proxy replacement health check server to serve on (set to '0.0.0.0:10256' for all IPv4 interfaces and '[::]:10256' for all IPv6 interfaces). Set empty to disable.
       --kvstore string                                          Key-value store type
       --kvstore-connectivity-timeout duration                   Time after which an incomplete kvstore operation  is considered failed (default 2m0s)
@@ -259,7 +260,7 @@ cilium-agent [flags]
   -t, --tunnel string                                           Tunnel mode {vxlan, geneve, disabled} (default "vxlan" for the "veth" datapath mode)
       --tunnel-port int                                         Tunnel port (default 8472 for "vxlan" and 6081 for "geneve")
       --version                                                 Print version information
-      --vlan-bpf-bypass ints                                    List of explicitly allowed VLAN IDs, '0' id will allow all VLAN IDs
+      --vlan-bpf-bypass strings                                 List of explicitly allowed VLAN IDs, '0' id will allow all VLAN IDs
       --vtep-cidr strings                                       List of VTEP CIDRs that will be routed towards VTEPs for traffic cluster egress
       --vtep-endpoint strings                                   List of VTEP IP addresses
       --vtep-mac strings                                        List of VTEP MAC addresses for forwarding traffic outside the cluster

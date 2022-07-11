@@ -18,14 +18,14 @@ cilium-operator [flags]
       --aws-use-primary-address                   Allows for using primary address of the ENI for allocations on the node
       --azure-resource-group string               Resource group to use for Azure IPAM
       --azure-subscription-id string              Subscription ID to access Azure API
-      --azure-use-primary-address                 Use Azure IP address from interface's primary IPConfigurations (default true)
+      --azure-use-primary-address                 Use Azure IP address from interface's primary IPConfigurations
       --azure-user-assigned-identity-id string    ID of the user assigned identity used to auth with the Azure API
       --bgp-announce-lb-ip                        Announces service IPs of type LoadBalancer via BGP
       --bgp-config-path string                    Path to file containing the BGP configuration (default "/var/lib/cilium/bgp/config.yaml")
       --cilium-endpoint-gc-interval duration      GC interval for cilium endpoints (default 5m0s)
       --cilium-pod-labels string                  Cilium Pod's labels. Used to detect if a Cilium pod is running to remove the node taints where its running and set NetworkUnavailable to false (default "k8s-app=cilium")
       --cilium-pod-namespace string               Name of the Kubernetes namespace in which Cilium is deployed in. Defaults to the same namespace defined in k8s-namespace
-      --cluster-id int                            Unique identifier of the cluster
+      --cluster-id uint32                         Unique identifier of the cluster
       --cluster-name string                       Name of the cluster (default "default")
       --cluster-pool-ipv4-cidr strings            IPv4 CIDR Range for Pods in cluster. Requires 'ipam=cluster-pool|cluster-pool-v2beta' and 'enable-ipv4=true'
       --cluster-pool-ipv4-mask-size int           Mask size for each IPv4 podCIDR per node. Requires 'ipam=cluster-pool|cluster-pool-v2beta' and 'enable-ipv4=true' (default 24)

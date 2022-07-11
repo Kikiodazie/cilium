@@ -570,12 +570,11 @@ func initializeFlags() {
 	option.BindEnv(option.Labels)
 
 	flags.String(option.KubeProxyReplacement, option.KubeProxyReplacementPartial, fmt.Sprintf(
-		"auto-enable available features for kube-proxy replacement (%q), "+
-			"or enable only selected features (will panic if any selected feature cannot be enabled) (%q) "+
+		"enable only selected features (will panic if any selected feature cannot be enabled) (%q), "+
 			"or enable all features (will panic if any feature cannot be enabled) (%q), "+
 			"or completely disable it (ignores any selected feature) (%q)",
-		option.KubeProxyReplacementProbe, option.KubeProxyReplacementPartial,
-		option.KubeProxyReplacementStrict, option.KubeProxyReplacementDisabled))
+		option.KubeProxyReplacementPartial, option.KubeProxyReplacementStrict,
+		option.KubeProxyReplacementDisabled))
 	option.BindEnv(option.KubeProxyReplacement)
 
 	flags.String(option.KubeProxyReplacementHealthzBindAddr, defaults.KubeProxyReplacementHealthzBindAddr, "The IP address with port for kube-proxy replacement health check server to serve on (set to '0.0.0.0:10256' for all IPv4 interfaces and '[::]:10256' for all IPv6 interfaces). Set empty to disable.")
@@ -724,6 +723,9 @@ func initializeFlags() {
 
 	flags.Bool(option.EnableIPMasqAgent, false, "Enable BPF ip-masq-agent")
 	option.BindEnv(option.EnableIPMasqAgent)
+
+	flags.Bool(option.EnableIPv6BIGTCP, false, "Enable IPv6 BIG TCP option which increases device's maximum GRO/GSO limits")
+	option.BindEnv(option.EnableIPv6BIGTCP)
 
 	flags.Bool(option.EnableIPv4EgressGateway, false, "Enable egress gateway for IPv4")
 	option.BindEnv(option.EnableIPv4EgressGateway)
@@ -1094,7 +1096,9 @@ func initializeFlags() {
 	flags.Bool(option.ExternalClusterIPName, false, "Enable external access to ClusterIP services (default false)")
 	option.BindEnv(option.ExternalClusterIPName)
 
-	flags.IntSlice(option.VLANBPFBypass, []int{}, "List of explicitly allowed VLAN IDs, '0' id will allow all VLAN IDs")
+	// flags.IntSlice cannot be used due to missing support for appropriate conversion in Viper.
+	// See https://github.com/cilium/cilium/pull/20282 for more information.
+	flags.StringSlice(option.VLANBPFBypass, []string{}, "List of explicitly allowed VLAN IDs, '0' id will allow all VLAN IDs")
 	option.BindEnv(option.VLANBPFBypass)
 
 	flags.Bool(option.EnableICMPRules, true, "Enable ICMP-based rule support for Cilium Network Policies")
@@ -1590,7 +1594,7 @@ func initEnv(cmd *cobra.Command) {
 	// mode which support the bypass.
 	if option.Config.BypassIPAvailabilityUponRestore {
 		switch option.Config.IPAMMode() {
-		case ipamOption.IPAMENI:
+		case ipamOption.IPAMENI, ipamOption.IPAMAzure:
 			log.Info(
 				"Running with bypass of IP not available errors upon endpoint " +
 					"restore. Be advised that this mode is intended to be " +

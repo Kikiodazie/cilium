@@ -121,38 +121,6 @@ interface as follows:
 
            --set encryption.ipsec.interface=ethX
 
-.. _node_to_node_encryption:
-
-Node-to-node encryption (beta)
-------------------------------
-
-In order to enable node-to-node encryption, add:
-
-.. tabs::
-
-    .. group-tab:: Cilium CLI
-
-       .. code-block:: shell-session
-
-          cilium install --encryption ipsec --node-encryption
-
-    .. group-tab:: Helm
-
-       .. code-block:: shell-session
-
-           --set encryption.enabled=true \
-           --set encryption.nodeEncryption=true \
-
-.. note::
-
-    Node-to-node encryption is a beta feature. Please provide feedback and file
-    a GitHub issue if you experience any problems.
-
-    Node-to-node encryption is tested and supported with direct routing modes.
-    Using with encapsulation/tunneling is not currently tested or supported.
-
-    Support with tunneling mode is tracked with :gh-issue:`13663`.
-
 Validate the Setup
 ==================
 
@@ -197,12 +165,10 @@ To replace cilium-ipsec-keys secret with a new key:
     data=$(echo "{\"stringData\":{\"keys\":\"$((($KEYID+1))) "rfc4106\(gcm\(aes\)\)" $(echo $(dd if=/dev/urandom count=20 bs=1 2> /dev/null| xxd -p -c 64)) 128\"}}")
     kubectl patch secret -n kube-system cilium-ipsec-keys -p="${data}" -v=1
 
-Then restart Cilium agents to transition to the new key with
-``kubectl delete pod -n kube-system -l k8s-app=cilium``. During transition the
-new and old keys will be in use. The Cilium agent keeps per endpoint data on
-which key is used by each endpoint and will use the correct key if either side
-has not yet been updated. In this way encryption will work as new keys are
-rolled out.
+During transition the new and old keys will be in use. The Cilium agent keeps
+per endpoint data on which key is used by each endpoint and will use the correct
+key if either side has not yet been updated. In this way encryption will work as
+new keys are rolled out.
 
 The ``KEYID`` environment variable in the above example stores the current key
 ID used by Cilium. The key variable is a uint8 with value between 1 and 15

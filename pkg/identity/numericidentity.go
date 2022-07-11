@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 
 	api "github.com/cilium/cilium/pkg/k8s/apis/cilium.io"
@@ -23,6 +24,32 @@ const (
 	// LocalIdentityFlag is the bit in the numeric identity that identifies
 	// a numeric identity to have local scope
 	LocalIdentityFlag = NumericIdentity(1 << 24)
+
+	// MinAllocatorLocalIdentity represents the minimal numeric identity
+	// that the localIdentityCache allocator can allocate for a local (CIDR)
+	// identity.
+	//
+	// Note that this does not represents the minimal value for a local
+	// identity, as the allocated ID will then be bitwise OR'ed with
+	// LocalIdentityFlag.
+	MinAllocatorLocalIdentity = 1
+
+	// MinLocalIdentity represents the actual minimal numeric identity value
+	// for a local (CIDR) identity.
+	MinLocalIdentity = MinAllocatorLocalIdentity | LocalIdentityFlag
+
+	// MaxAllocatorLocalIdentity represents the maximal numeric identity
+	// that the localIdentityCache allocator can allocate for a local (CIDR)
+	// identity.
+	//
+	// Note that this does not represents the maximal value for a local
+	// identity, as the allocated ID will then be bitwise OR'ed with
+	// LocalIdentityFlag.
+	MaxAllocatorLocalIdentity = 0xFFFFFF
+
+	// MaxLocalIdentity represents the actual maximal numeric identity value
+	// for a local (CIDR) identity.
+	MaxLocalIdentity = MaxAllocatorLocalIdentity | LocalIdentityFlag
 
 	// MinimalNumericIdentity represents the minimal numeric identity not
 	// used for reserved purposes.
@@ -479,16 +506,24 @@ func (id NumericIdentity) IsReservedIdentity() bool {
 }
 
 // ClusterID returns the cluster ID associated with the identity
-func (id NumericIdentity) ClusterID() int {
-	return int((uint32(id) >> 16) & 0xFF)
+func (id NumericIdentity) ClusterID() uint32 {
+	return (uint32(id) >> 16) & 0xFF
 }
 
-// GetAllReservedIdentities returns a list of all reserved numeric identities.
+// GetAllReservedIdentities returns a list of all reserved numeric identities
+// in ascending order.
+// NOTE: While this func is unused from the cilium repository, is it imported
+// and called by the hubble cli.
 func GetAllReservedIdentities() []NumericIdentity {
-	identities := []NumericIdentity{}
+	identities := make([]NumericIdentity, 0, len(reservedIdentities))
 	for _, id := range reservedIdentities {
 		identities = append(identities, id)
 	}
+	// Because our reservedIdentities source is a go map, and go map order is
+	// randomized, we need to sort the resulting slice before returning it.
+	sort.Slice(identities, func(i, j int) bool {
+		return identities[i].Uint32() < identities[j].Uint32()
+	})
 	return identities
 }
 

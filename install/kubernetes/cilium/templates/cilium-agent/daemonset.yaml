@@ -222,6 +222,12 @@ spec:
         {{- end }}
         {{- if or .Values.prometheus.enabled .Values.hubble.metrics.enabled }}
         ports:
+        {{- if .Values.hubble.peerService.enabled }}
+        - name: peer-service
+          containerPort: {{ .Values.hubble.peerService.targetPort }}
+          hostPort: {{ .Values.hubble.peerService.targetPort }}
+          protocol: TCP
+        {{- end }}
         {{- if .Values.prometheus.enabled }}
         - name: prometheus
           containerPort: {{ .Values.prometheus.port }}
@@ -404,6 +410,9 @@ spec:
         resources:
           {{- toYaml . | trim | nindent 10 }}
         {{- end }}
+      {{- end }}
+      {{- if .Values.extraContainers }}
+      {{- toYaml .Values.extraContainers | nindent 6 }}
       {{- end }}
       initContainers:
       {{- if .Values.cgroup.autoMount.enabled }}
@@ -626,6 +635,8 @@ spec:
       # In managed etcd mode, Cilium must be able to resolve the DNS name of
       # the etcd service
       dnsPolicy: ClusterFirstWithHostNet
+      {{- else if .Values.dnsPolicy }}
+      dnsPolicy: {{ .Values.dnsPolicy }}
       {{- end }}
       {{- with .Values.affinity }}
       affinity:

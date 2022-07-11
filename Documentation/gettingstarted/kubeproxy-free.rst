@@ -126,13 +126,8 @@ Note, in above Helm configuration, the ``kubeProxyReplacement`` has been set to
 ``strict`` mode. This means that the Cilium agent will bail out in case the
 underlying Linux kernel support is missing.
 
-By default, Helm sets ``kubeProxyReplacement=probe``, which automatically
-disables a subset of the features to implement the kube-proxy replacement instead
-of bailing out if the kernel support is missing. This makes the assumption that
-Cilium's eBPF kube-proxy replacement would co-exist with kube-proxy on the system
-to optimize Kubernetes services. Given we've used kubeadm to explicitly deploy
-a kube-proxy-free setup, ``strict`` mode is explicitly set in this guide to ensure
-that we do not rely on a (non-existing) fallback.
+By default, Helm sets ``kubeProxyReplacement=disabled``, which only enables
+per-packet in-cluster load-balancing of ClusterIP services.
 
 Cilium's eBPF kube-proxy replacement is supported in direct routing as well as in
 tunneling mode.
@@ -931,10 +926,9 @@ Although not part of kube-proxy, Cilium's eBPF kube-proxy replacement also
 natively supports ``hostPort`` service mapping without having to use the
 Helm CNI chaining option of ``cni.chainingMode=portmap``.
 
-By specifying ``kubeProxyReplacement=strict`` or ``kubeProxyReplacement=probe``
-the native hostPort support is automatically enabled and therefore no further
-action is required. Otherwise ``hostPort.enabled=true`` can be used to
-enable the setting.
+By specifying ``kubeProxyReplacement=strict`` the native hostPort support is
+automatically enabled and therefore no further action is required. Otherwise
+``hostPort.enabled=true`` can be used to enable the setting.
 
 If the ``hostPort`` is specified without an additional ``hostIP``, then the
 Pod will be exposed to the outside world with the same local addresses from
@@ -1077,36 +1071,22 @@ This section elaborates on the various ``kubeProxyReplacement`` options:
   (see :ref:`kubeproxy-free` note), then the Cilium agent will bail out on start-up
   with an error message.
 
-- ``kubeProxyReplacement=probe``: This option is only intended for a hybrid setup,
-  that is, kube-proxy is running in the Kubernetes cluster where Cilium partially
-  replaces and optimizes kube-proxy functionality. Once the Cilium agent is up and
-  running, it probes the underlying kernel for the availability of needed eBPF kernel
-  features and, if not present, disables a subset of the functionality in eBPF by
-  relying on kube-proxy to complement the remaining Kubernetes service handling. The
-  Cilium agent will emit an info message into its log in such case. For example, if
-  the kernel does not support :ref:`host-services`, then the ClusterIP translation
-  for the node's host-namespace is done through kube-proxy's iptables rules. Also,
-  the Cilium agent will set ``nodePort.bindProtection`` to ``false`` in this mode in
-  order to defer to kube-proxy for performing the bind-protection of the host namespace.
-  This is done to avoid having kube-proxy throw (harmless) warnings to its log stating
-  that it could not perform bind calls. In the ``strict`` mode this bind protection is
-  performed by Cilium in a more efficient manner with the help of eBPF instead of
-  allocating and binding actual sockets.
-
-- ``kubeProxyReplacement=partial``: Similarly to ``probe``, this option is
-  intended for a hybrid setup, that is, kube-proxy is running in the Kubernetes cluster
-  where Cilium partially replaces and optimizes kube-proxy functionality. As opposed to
-  ``probe`` which checks the underlying kernel for available eBPF features and automatically
-  disables components responsible for the eBPF kube-proxy replacement when kernel support
-  is missing, the ``partial`` option requires the user to manually specify which components
-  for the eBPF kube-proxy replacement should be used. When ``kubeProxyReplacement``
-  is set to ``partial`` make sure to also set ``enableHealthCheckNodeport`` to
-  ``false``, so that the Cilium agent does not start the NodePort health check server.
-  Similarly to ``strict`` mode, the Cilium agent will bail out on start-up with an error
-  message if the underlying kernel requirements are not met. For fine-grained configuration,
-  ``hostServices.enabled``, ``nodePort.enabled``, ``externalIPs.enabled``
-  and ``hostPort.enabled`` can be set to ``true``. By default all four options are set
-  to ``false``. A few example configurations for the ``partial`` option are provided below.
+- ``kubeProxyReplacement=partial``: This option is intended for a hybrid setup,
+  that is, kube-proxy is running in the Kubernetes cluster where Cilium
+  partially replaces and optimizes kube-proxy functionality. The ``partial``
+  option requires the user to manually specify which components for the eBPF
+  kube-proxy replacement should be used.
+  Similarly to ``strict`` mode, the Cilium agent will bail out on start-up with
+  an error message if the underlying kernel requirements are not met. For
+  fine-grained configuration, ``hostServices.enabled``, ``nodePort.enabled``,
+  ``externalIPs.enabled`` and ``hostPort.enabled`` can be set to ``true``. By
+  default all four options are set to ``false``.
+  If you are setting ``nodePort.enabled`` to true, make sure to also
+  set ``nodePort.enableHealthCheck`` to ``false``, so that the Cilium agent does not
+  start the NodePort health check server (``kube-proxy`` will also attempt to start
+  this server, and there would otherwise be a clash when cilium attempts to bind its server to the
+  same port). A few example configurations
+  for the ``partial`` option are provided below.
 
   The following Helm setup below would be equivalent to ``kubeProxyReplacement=strict``
   in a kube-proxy-free environment:
@@ -1160,7 +1140,7 @@ This section elaborates on the various ``kubeProxyReplacement`` options:
   handling by fully relying on kube-proxy instead, except for ClusterIP services
   accessed from pods (pre-v1.6 behavior).
 
-In Cilium's Helm chart, the default mode is ``kubeProxyReplacement=probe`` for
+In Cilium's Helm chart, the default mode is ``kubeProxyReplacement=disabled`` for
 new deployments.
 
 The current Cilium kube-proxy replacement mode can also be introspected through the
@@ -1214,10 +1194,15 @@ if needed.
 The source for the affinity depends on the origin of a request. If a request is
 sent from outside the cluster to the service, the request's source IP address is
 used for determining the endpoint affinity. If a request is sent from inside
-the cluster, the client's network namespace cookie is used. The latter was introduced
-in the 5.7 Linux kernel to implement the affinity at the socket layer at which
-:ref:`host-services` operate (a source IP is not available there, as the endpoint
-selection happens before a network packet has been built by the kernel).
+the cluster, then the source depends on whether the :ref:`host-services` feature
+is used to load balance ClusterIP services. If yes, then the client's network
+namespace cookie is used as the source. The latter was introduced in the 5.7
+Linux kernel to implement the affinity at the socket layer at which
+:ref:`host-services` operate (a source IP is not available there, as the
+endpoint selection happens before a network packet has been built by the
+kernel). If :ref:`host-services` is not used (i.e. the loadbalancing is done
+at the pod network interface, on a per-packet basis), then the request's source
+IP address is used as the source.
 
 The session affinity support is enabled by default for Cilium's kube-proxy
 replacement. For users who run on older kernels which do not support the network
@@ -1232,6 +1217,13 @@ given service sent from the same source and to the same service port will be rou
 to the same service endpoints; but two requests for the same service, sent from
 the same source but to different service ports may be routed to distinct service
 endpoints.
+
+For users who run with kube-proxy (i.e. with Cilium's kube-proxy replacement
+disabled), the ClusterIP service loadbalancing when a request is sent from a pod
+running in a non-host network namespace is still performed at the pod network
+interface (until `GH#16197 <https://github.com/cilium/cilium/issues/16197>`__ is
+fixed).  For this case the session affinity support is disabled by default. To
+enable the feature, set ``config.sessionAffinity=true``.
 
 kube-proxy Replacement Health Check server
 ******************************************

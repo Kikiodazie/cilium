@@ -5,6 +5,7 @@ AdapterLimitViaAPI
 Alemayhu
 Alibaba
 Anthos
+BIGTCP
 BPF
 Bertin
 Blanco
@@ -331,6 +332,7 @@ discoverable
 distro
 distros
 dns
+dnsPolicy
 dnsProxy
 dnsRejectResponseCode
 dockerhub
@@ -388,6 +390,7 @@ externalIPs
 externalWorkloads
 extraArgs
 extraConfig
+extraContainers
 extraDnsNames
 extraEnv
 extraHostPathMounts
@@ -933,6 +936,7 @@ tofqdns
 tofqdnsPreCache
 tolerations
 toolchain
+topologySpreadConstraints
 tproxy
 tracepoint
 tracepoints

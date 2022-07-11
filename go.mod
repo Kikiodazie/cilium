@@ -3,18 +3,18 @@ module github.com/cilium/cilium
 go 1.18
 
 require (
-	github.com/Azure/azure-sdk-for-go v65.0.0+incompatible
+	github.com/Azure/azure-sdk-for-go v66.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.27
 	github.com/Azure/go-autorest/autorest/adal v0.9.20
 	github.com/Azure/go-autorest/autorest/azure/auth v0.5.11
 	github.com/Azure/go-autorest/autorest/to v0.4.0
-	github.com/aliyun/alibaba-cloud-sdk-go v1.61.1630
+	github.com/aliyun/alibaba-cloud-sdk-go v1.61.1662
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
-	github.com/aws/aws-sdk-go-v2 v1.16.5
-	github.com/aws/aws-sdk-go-v2/config v1.15.10
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.12.6
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.45.1
-	github.com/aws/smithy-go v1.11.3
+	github.com/aws/aws-sdk-go-v2 v1.16.6
+	github.com/aws/aws-sdk-go-v2/config v1.15.12
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.12.7
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.47.1
+	github.com/aws/smithy-go v1.12.0
 	github.com/blang/semver/v4 v4.0.0
 	github.com/cilium/customvet v0.0.0-20201209211516-9852765c1ac4
 	github.com/cilium/deepequal-gen v0.0.0-20200406125435-ad6a9003139e
@@ -42,7 +42,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.8
 	github.com/google/gopacket v1.1.19
-	github.com/google/gops v0.3.23
+	github.com/google/gops v0.3.25
 	github.com/google/renameio v1.0.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
@@ -57,7 +57,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	github.com/optiopay/kafka v0.0.0-00010101000000-000000000000
-	github.com/osrg/gobgp/v3 v3.3.0
+	github.com/osrg/gobgp/v3 v3.4.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/client_model v0.2.1-0.20210607210712-147c58e9608a
@@ -68,11 +68,11 @@ require (
 	github.com/shirou/gopsutil/v3 v3.22.5
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cast v1.5.0
-	github.com/spf13/cobra v1.4.0
+	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.12.0
-	github.com/stretchr/testify v1.7.4
-	github.com/vishvananda/netlink v1.1.1-0.20220125195016-0639e7e787ba
+	github.com/stretchr/testify v1.8.0
+	github.com/vishvananda/netlink v1.2.1-beta.2.0.20220608195807-1a118fe229fc
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74
 	go.etcd.io/etcd/api/v3 v3.5.4
 	go.etcd.io/etcd/client/pkg/v3 v3.5.4
@@ -115,19 +115,19 @@ require (
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/Microsoft/go-winio v0.5.1 // indirect
 	github.com/armon/go-metrics v0.3.10 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.12.5 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.12 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.6 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.13 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.11.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.16.7 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.12.7 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.13 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.7 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.14 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.7 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.11.10 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.16.8 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cncf/xds/go v0.0.0-20211130200136-a8f946100490 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect

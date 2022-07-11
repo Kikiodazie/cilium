@@ -337,7 +337,20 @@ Annotations:
   +-----------------------+-----------------------+-------------------------+
   | Hubble                |  9091                 | 9965                    |
   +-----------------------+-----------------------+-------------------------+
-  
+
+* In Azure IPAM mode, the default for ``--azure-use-primary-address`` has changed from
+  true to false. With this change pod interface's primary IP is no longer included in the
+  node's IP pool by default. The previous default required users to disable DHCP on the
+  pod's interface to avoid primary IP from interfering with host networking. Unless the
+  flag is explicitly set to true, ``--bypass-ip-availability-upon-restore`` also needs
+  to be set to ensure that pods using primary IP get a new IP address. This flag can be
+  removed once the upgrade is complete. Backward compatibility will be maintained when
+  ``upgradeCompatibility`` is set on the helm chart.
+
+* The ``sessionAffinity`` has to be set to ``true`` in order to enable the
+  feature when running with the ``kubeProxyReplacement=partial``. Previously,
+  the feature was automatically enabled for the ``partial`` when
+  ``upgradeCompatibility`` was not set or it was set to ``>= 1.8``.
 
 New Options
 ~~~~~~~~~~~
@@ -362,8 +375,6 @@ Removed Options
   connection tracking was removed. In addition, we deprecated the
   ``disable-conntrack`` option and made it non-operational. It will be removed
   in version 1.13.
-* The ``host-reachable-services-protos`` option (``.hostServices.protocols`` in
-  Helm) was deprecated, and it will be removed in version 1.13.
 * The ``native-routing-cidr`` option deprecated in 1.11 in favor of
   ``ipv4-native-routing-cidr`` has been removed.
 * The ``prefilter-device`` and ``prefilter-mode`` options deprecated in 1.11 in
@@ -375,6 +386,10 @@ Deprecated Options
 * The ``CiliumEgressNATPolicy`` CRD has been deprecated, and will be removed in
   version 1.13. It is superseded by the ``CiliumEgressGatewayPolicy`` CRD, which
   allows for better selection of the Egress Node, Egress Interface and Masquerade IP.
+* The ``host-reachable-services-protos`` option (``.hostServices.protocols`` in
+  Helm) was deprecated, and it will be removed in version 1.13.
+* The ``probe`` option of ``kube-proxy-replacement`` was deprecated, and it will
+  be removed in version 1.13.
 
 Helm Options
 ~~~~~~~~~~~~
@@ -403,6 +418,8 @@ Helm Options
 * The ``nodeSelector`` of all components now default to
   ``{"kubernetes.io/os":"linux"}`` to ensure these pods with Linux-based
   container images are not scheduled on non-Linux nodes.
+* ``cluster.id`` cannot be empty and a value must be specified.
+  Use the ``0`` value to leave Cluster Mesh disabled.
 
 .. _1.11_upgrade_notes:
 

@@ -20,6 +20,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -349,6 +350,9 @@ const (
 
 	// EnableIPv6Masquerade masquerades IPv6 packets from endpoints leaving the host.
 	EnableIPv6Masquerade = "enable-ipv6-masquerade"
+
+	// EnableIPv6BIGTCP enables IPv6 BIG TCP (larger GSO/GRO limits) for the node including pods.
+	EnableIPv6BIGTCP = "enable-ipv6-big-tcp"
 
 	// EnableBPFClockProbe selects a more efficient source clock (jiffies vs ktime)
 	EnableBPFClockProbe = "enable-bpf-clock-probe"
@@ -1392,7 +1396,7 @@ type DaemonConfig struct {
 	ClusterName string
 
 	// ClusterID is the unique identifier of the cluster
-	ClusterID int
+	ClusterID uint32
 
 	// ClusterMeshConfig is the path to the clustermesh configuration directory
 	ClusterMeshConfig string
@@ -1549,6 +1553,9 @@ type DaemonConfig struct {
 
 	// EnableIPv6NDP is true when NDP is enabled for IPv6
 	EnableIPv6NDP bool
+
+	// EnableIPv6BIGTCP enables IPv6 BIG TCP (larger GSO/GRO limits) for the node including pods.
+	EnableIPv6BIGTCP bool
 
 	// IPv6MCastDevice is the name of device that joins IPv6's solicitation multicast group
 	IPv6MCastDevice string
@@ -2387,6 +2394,13 @@ func (c *DaemonConfig) TunnelingEnabled() bool {
 	return c.Tunnel != TunnelDisabled
 }
 
+// TunnelExists returns true if some traffic may go through a tunnel, including
+// if the primary mode is native routing. For example, in the egress gateway,
+// we may send such traffic to a gateway node via a tunnel.
+func (c *DaemonConfig) TunnelExists() bool {
+	return c.TunnelingEnabled() || c.EnableIPv4EgressGateway
+}
+
 // MasqueradingEnabled returns true if either IPv4 or IPv6 masquerading is enabled.
 func (c *DaemonConfig) MasqueradingEnabled() bool {
 	return c.EnableIPv4Masquerade || c.EnableIPv6Masquerade
@@ -2760,7 +2774,7 @@ func (c *DaemonConfig) Populate() {
 	c.BPFRoot = viper.GetString(BPFRoot)
 	c.CertDirectory = viper.GetString(CertsDirectory)
 	c.CGroupRoot = viper.GetString(CGroupRoot)
-	c.ClusterID = viper.GetInt(ClusterIDName)
+	c.ClusterID = viper.GetUint32(ClusterIDName)
 	c.ClusterName = viper.GetString(ClusterName)
 	c.ClusterMeshConfig = viper.GetString(ClusterMeshConfigName)
 	c.DatapathMode = viper.GetString(DatapathMode)
@@ -2771,6 +2785,7 @@ func (c *DaemonConfig) Populate() {
 	c.EnableIPv4 = viper.GetBool(EnableIPv4Name)
 	c.EnableIPv6 = viper.GetBool(EnableIPv6Name)
 	c.EnableIPv6NDP = viper.GetBool(EnableIPv6NDPName)
+	c.EnableIPv6BIGTCP = viper.GetBool(EnableIPv6BIGTCP)
 	c.IPv6MCastDevice = viper.GetString(IPv6MCastDevice)
 	c.EnableIPSec = viper.GetBool(EnableIPSecName)
 	c.EnableWireguard = viper.GetBool(EnableWireguard)
@@ -2940,7 +2955,15 @@ func (c *DaemonConfig) Populate() {
 	c.EnableRuntimeDeviceDetection = viper.GetBool(EnableRuntimeDeviceDetection)
 	c.EgressMultiHomeIPRuleCompat = viper.GetBool(EgressMultiHomeIPRuleCompat)
 
-	c.VLANBPFBypass = viper.GetIntSlice(VLANBPFBypass)
+	vlanBPFBypassIDs := viper.GetStringSlice(VLANBPFBypass)
+	c.VLANBPFBypass = make([]int, 0, len(vlanBPFBypassIDs))
+	for _, vlanIDStr := range vlanBPFBypassIDs {
+		vlanID, err := strconv.Atoi(vlanIDStr)
+		if err != nil {
+			log.WithError(err).Fatalf("Cannot parse vlan ID integer from --%s option", VLANBPFBypass)
+		}
+		c.VLANBPFBypass = append(c.VLANBPFBypass, vlanID)
+	}
 
 	c.Tunnel = viper.GetString(TunnelName)
 	c.TunnelPort = viper.GetInt(TunnelPortName)
@@ -3190,7 +3213,6 @@ func (c *DaemonConfig) Populate() {
 	c.CompilerFlags = viper.GetStringSlice(CompilerFlags)
 	c.ConfigFile = viper.GetString(ConfigFile)
 	c.HTTP403Message = viper.GetString(HTTP403Message)
-	c.DisableEnvoyVersionCheck = viper.GetBool(DisableEnvoyVersionCheck)
 	c.K8sNamespace = viper.GetString(K8sNamespaceName)
 	c.AgentNotReadyNodeTaintKey = viper.GetString(AgentNotReadyNodeTaintKeyName)
 	c.MaxControllerInterval = viper.GetInt(MaxCtrlIntervalName)
@@ -3202,6 +3224,12 @@ func (c *DaemonConfig) Populate() {
 	c.EnableICMPRules = viper.GetBool(EnableICMPRules)
 	c.BypassIPAvailabilityUponRestore = viper.GetBool(BypassIPAvailabilityUponRestore)
 	c.EnableK8sTerminatingEndpoint = viper.GetBool(EnableK8sTerminatingEndpoint)
+
+	// Disable Envoy version check if L7 proxy is disabled.
+	c.DisableEnvoyVersionCheck = viper.GetBool(DisableEnvoyVersionCheck)
+	if !c.EnableL7Proxy {
+		c.DisableEnvoyVersionCheck = true
+	}
 
 	// VTEP integration enable option
 	c.EnableVTEP = viper.GetBool(EnableVTEP)
@@ -3730,23 +3758,67 @@ func sanitizeIntParam(paramName string, paramDefault int) int {
 	return intParam
 }
 
-// validateConfigmap checks whether the flag exists and validate the value of flag
-func validateConfigmap(cmd *cobra.Command, m map[string]interface{}) (error, string) {
-	// validate the config-map
+// validateConfigMap checks whether the flag exists and validate its value
+func validateConfigMap(cmd *cobra.Command, m map[string]interface{}) error {
+	flags := cmd.Flags()
+
 	for key, value := range m {
-		if val := fmt.Sprintf("%v", value); val != "" {
-			flags := cmd.Flags()
-			// check whether the flag exists
-			if flag := flags.Lookup(key); flag != nil {
-				// validate the value of flag
-				if err := flag.Value.Set(val); err != nil {
-					return err, key
-				}
-			}
+		flag := flags.Lookup(key)
+		if flag == nil {
+			continue
+		}
+
+		var err error
+
+		switch t := flag.Value.Type(); t {
+		case "bool":
+			_, err = cast.ToBoolE(value)
+		case "duration":
+			_, err = cast.ToDurationE(value)
+		case "float32":
+			_, err = cast.ToFloat32E(value)
+		case "float64":
+			_, err = cast.ToFloat64E(value)
+		// remove this after PR https://github.com/cilium/cilium/pull/20282 is merged
+		case "intSlice":
+			_, err = cast.ToIntSliceE(value)
+		case "int":
+			_, err = cast.ToIntE(value)
+		case "int8":
+			_, err = cast.ToInt8E(value)
+		case "int16":
+			_, err = cast.ToInt16E(value)
+		case "int32":
+			_, err = cast.ToInt32E(value)
+		case "int64":
+			_, err = cast.ToInt64E(value)
+		case "map":
+			// custom type, see pkg/option/map_options.go
+			err = flag.Value.Set(fmt.Sprintf("%s", value))
+		case "stringSlice":
+			_, err = cast.ToStringSliceE(value)
+		case "string":
+			_, err = cast.ToStringE(value)
+		case "uint":
+			_, err = cast.ToUintE(value)
+		case "uint8":
+			_, err = cast.ToUint8E(value)
+		case "uint16":
+			_, err = cast.ToUint16E(value)
+		case "uint32":
+			_, err = cast.ToUint32E(value)
+		case "uint64":
+			_, err = cast.ToUint64E(value)
+		default:
+			log.Warnf("Unable to validate option %s value of type %s", key, t)
+		}
+
+		if err != nil {
+			return fmt.Errorf("option %s: %w", key, err)
 		}
 	}
 
-	return nil, ""
+	return nil
 }
 
 // InitConfig reads in config file and ENV variables if set.
@@ -3777,8 +3849,8 @@ func InitConfig(cmd *cobra.Command, programName, configName string) func() {
 				ReplaceDeprecatedFields(m)
 
 				// validate the config-map
-				if err, flag := validateConfigmap(cmd, m); err != nil {
-					log.WithError(err).Fatal("Incorrect config-map flag " + flag)
+				if err := validateConfigMap(cmd, m); err != nil {
+					log.WithError(err).Fatal("Incorrect config-map flag value")
 				}
 
 				if err := MergeConfig(m); err != nil {
