@@ -70,7 +70,7 @@
      - bool
      - ``false``
    * - bgpControlPlane
-     - This feature set enables virtual BGP routers to be created via  CiliumBGPPeeringPolicy CRDs.
+     - This feature set enables virtual BGP routers to be created via CiliumBGPPeeringPolicy CRDs.
      - object
      - ``{"enabled":false}``
    * - bgpControlPlane.enabled
@@ -705,18 +705,6 @@
      - Enable hostPort service support.
      - bool
      - ``false``
-   * - hostServices
-     - Configure ClusterIP service handling in the host namespace (the node).
-     - object
-     - ``{"enabled":false,"protocols":"tcp,udp"}``
-   * - hostServices.enabled
-     - Enable host reachable services.
-     - bool
-     - ``false``
-   * - hostServices.protocols
-     - Supported list of protocols to apply ClusterIP translation to.
-     - string
-     - ``"tcp,udp"``
    * - hubble.enabled
      - Enable Hubble (true by default).
      - bool
@@ -825,6 +813,26 @@
      - The priority class to use for hubble-relay
      - string
      - ``""``
+   * - hubble.relay.prometheus
+     - Enable prometheus metrics for hubble-relay on the configured port at /metrics
+     - object
+     - ``{"enabled":false,"port":9966,"serviceMonitor":{"annotations":{},"enabled":false,"interval":"10s","labels":{}}}``
+   * - hubble.relay.prometheus.serviceMonitor.annotations
+     - Annotations to add to ServiceMonitor hubble-relay
+     - object
+     - ``{}``
+   * - hubble.relay.prometheus.serviceMonitor.enabled
+     - Enable service monitors. This requires the prometheus CRDs to be available (see https://github.com/prometheus-operator/prometheus-operator/blob/master/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml)
+     - bool
+     - ``false``
+   * - hubble.relay.prometheus.serviceMonitor.interval
+     - Interval for scrape metrics.
+     - string
+     - ``"10s"``
+   * - hubble.relay.prometheus.serviceMonitor.labels
+     - Labels to add to ServiceMonitor hubble-relay
+     - object
+     - ``{}``
    * - hubble.relay.replicas
      - Number of replicas run for the hubble-relay deployment.
      - int
@@ -1619,6 +1627,14 @@
      - ``{"annotations":{},"create":true,"name":"hubble-generate-certs"}``
    * - sleepAfterInit
      - Do not run Cilium agent when running with clean mode. Useful to completely uninstall Cilium as it will stop Cilium from starting and create artifacts in the node.
+     - bool
+     - ``false``
+   * - socketLB
+     - Configure socket LB
+     - object
+     - ``{"enabled":false}``
+   * - socketLB.enabled
+     - Enable socket LB
      - bool
      - ``false``
    * - sockops

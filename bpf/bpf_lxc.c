@@ -11,6 +11,10 @@
 
 #include <linux/icmpv6.h>
 
+/* Controls the inclusion of the CILIUM_CALL_SRV6 section in the object file.
+ */
+#define SKIP_SRV6_HANDLING
+
 #define EVENT_SOURCE LXC_ID
 
 #include "lib/tailcall.h"
@@ -54,7 +58,7 @@
  * Most services with L7 LB flag can not be redirected to their proxy port
  * in bpf_sock, so we must check for those via per packet LB as well.
  */
-#if !defined(ENABLE_HOST_SERVICES_FULL) || \
+#if !defined(ENABLE_SOCKET_LB_FULL) || \
     defined(ENABLE_SOCKET_LB_HOST_ONLY) || \
     defined(ENABLE_L7_LB)
 # define ENABLE_PER_PACKET_LB 1
@@ -1058,7 +1062,7 @@ skip_egress_gateway:
 			if (eth_store_daddr(ctx, (__u8 *)&vtep->vtep_mac, 0) < 0)
 				return DROP_WRITE_ERROR;
 			return __encap_and_redirect_with_nodeid(ctx, vtep->tunnel_endpoint,
-								WORLD_ID, &trace);
+								SECLABEL, WORLD_ID, &trace);
 		}
 	}
 skip_vtep:

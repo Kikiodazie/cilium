@@ -46,6 +46,7 @@ require (
 	github.com/google/renameio v1.0.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
+	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/hashicorp/consul/api v1.13.0
 	github.com/hashicorp/go-immutable-radix v1.3.1
 	github.com/hashicorp/golang-lru v0.5.4
@@ -89,16 +90,16 @@ require (
 	golang.zx2c4.com/wireguard v0.0.0-20211017052713-f87e87af0d9a
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20211027115401-c9b1ec1aa6d8
 	google.golang.org/genproto v0.0.0-20220519153652-3a47de7e79bd
-	google.golang.org/grpc v1.47.0
+	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/ini.v1 v1.66.6
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.24.0
-	k8s.io/apiextensions-apiserver v0.24.0
-	k8s.io/apimachinery v0.24.0
-	k8s.io/client-go v0.24.0
-	k8s.io/code-generator v0.24.0
+	k8s.io/api v0.24.2
+	k8s.io/apiextensions-apiserver v0.24.2
+	k8s.io/apimachinery v0.24.2
+	k8s.io/client-go v0.24.2
+	k8s.io/code-generator v0.24.2
 	k8s.io/klog/v2 v2.60.1
 	k8s.io/kube-openapi v0.0.0-20220328201542-3ee0da9b0b42
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
@@ -228,7 +229,7 @@ replace (
 	github.com/miekg/dns => github.com/cilium/dns v1.1.4-0.20190417235132-8e25ec9a0ff3
 	github.com/optiopay/kafka => github.com/cilium/kafka v0.0.0-20180809090225-01ce283b732b
 
-	go.universe.tf/metallb => github.com/cilium/metallb v0.1.1-0.20210831235406-48667b93284d
+	go.universe.tf/metallb => github.com/cilium/metallb v0.1.1-0.20220713202445-9066eee9e0be
 
 	// Using private fork of controller-tools. See commit msg for more context
 	// as to why we are using a private fork.

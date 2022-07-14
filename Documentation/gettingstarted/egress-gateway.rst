@@ -91,7 +91,8 @@ The egress gateway feature and all the requirements can be enabled as follow:
                --set egressGateway.enabled=true \\
                --set bpf.masquerade=true \\
                --set kubeProxyReplacement=strict \\
-               --set l7Proxy=false
+               --set l7Proxy=false \\
+               --set rollOutCiliumPods=true
 
     .. group-tab:: ConfigMap
 
@@ -257,16 +258,16 @@ There are 3 different ways this can be achieved:
 3. By omitting both ``egressIP`` and ``interface`` properties, which will make
    the agent use the first IPv4 assigned to the interface for the default route.
 
-   Regardless of which way the egress IP is configured, the user must ensure that
-   Cilium is running on the device that has the egress IP assigned to it, by
-   setting the ``--devices`` agent option accordingly.
-
    .. code-block:: yaml
 
      egressGateway:
        nodeSelector:
          matchLabels:
            testLabel: testVal
+
+Regardless of which way the egress IP is configured, the user must ensure that
+Cilium is running on the device that has the egress IP assigned to it, by
+setting the ``--devices`` agent option accordingly.
 
 Example policy
 --------------

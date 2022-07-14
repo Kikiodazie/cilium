@@ -331,6 +331,10 @@ func initializeFlags() {
 	flags.Bool(option.EnableIPv6NDPName, defaults.EnableIPv6NDP, "Enable IPv6 NDP support")
 	option.BindEnv(option.EnableIPv6NDPName)
 
+	flags.Bool(option.EnableSRv6, defaults.EnableSRv6, "Enable SRv6 support (beta)")
+	flags.MarkHidden(option.EnableSRv6)
+	option.BindEnv(option.EnableSRv6)
+
 	flags.String(option.IPv6MCastDevice, "", "Device that joins a Solicited-Node multicast group for IPv6")
 	option.BindEnv(option.IPv6MCastDevice)
 
@@ -365,8 +369,13 @@ func initializeFlags() {
 	flags.Bool(option.BPFSocketLBHostnsOnly, false, "Skip socket LB for services when inside a pod namespace, in favor of service LB at the pod interface. Socket LB is still used when in the host namespace. Required by service mesh (e.g., Istio, Linkerd).")
 	option.BindEnv(option.BPFSocketLBHostnsOnly)
 
+	flags.Bool(option.EnableSocketLB, false, "Enable socket-based LB for E/W traffic")
+	option.BindEnv(option.EnableSocketLB)
+
 	flags.Bool(option.EnableHostReachableServices, false, "Enable reachability of services for host applications")
 	option.BindEnv(option.EnableHostReachableServices)
+	flags.MarkDeprecated(option.EnableHostReachableServices,
+		fmt.Sprintf("This option will be removed in v1.13. Use --%s instead", option.EnableSocketLB))
 
 	flags.StringSlice(option.HostReachableServicesProtos, []string{option.HostServicesTCP, option.HostServicesUDP}, "Only enable reachability of services for host applications for specific protocols")
 	option.BindEnv(option.HostReachableServicesProtos)
@@ -1419,7 +1428,7 @@ func initEnv(cmd *cobra.Command) {
 		option.Config.LoadBalancerPMTUDiscovery =
 			option.Config.NodePortAcceleration != option.NodePortAccelerationDisabled
 		option.Config.KubeProxyReplacement = option.KubeProxyReplacementPartial
-		option.Config.EnableHostReachableServices = true
+		option.Config.EnableSocketLB = true
 		option.Config.EnableHostPort = false
 		option.Config.EnableNodePort = true
 		option.Config.EnableExternalIPs = true
@@ -1462,6 +1471,15 @@ func initEnv(cmd *cobra.Command) {
 
 	initClockSourceOption()
 	initSockmapOption()
+
+	if option.Config.EnableSRv6 {
+		if !option.Config.EnableIPv6 {
+			log.Fatalf("SRv6 requires IPv6.")
+		}
+		if !probes.NewProbeManager().GetMapTypes().HaveLruHashMapType {
+			log.Fatalf("SRv6 requires support for BPF LRU maps (Linux 4.10 or later).")
+		}
+	}
 
 	if option.Config.EnableHostFirewall {
 		if option.Config.EnableIPSec {
