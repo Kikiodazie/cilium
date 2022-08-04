@@ -11,6 +11,10 @@
 
 #include <linux/icmpv6.h>
 
+/* Controls the inclusion of the CILIUM_CALL_SRV6 section in the object file.
+ */
+#define SKIP_SRV6_HANDLING
+
 #define EVENT_SOURCE LXC_ID
 
 #include "lib/tailcall.h"
@@ -54,7 +58,7 @@
  * Most services with L7 LB flag can not be redirected to their proxy port
  * in bpf_sock, so we must check for those via per packet LB as well.
  */
-#if !defined(ENABLE_HOST_SERVICES_FULL) || \
+#if !defined(ENABLE_SOCKET_LB_FULL) || \
     defined(ENABLE_SOCKET_LB_HOST_ONLY) || \
     defined(ENABLE_L7_LB)
 # define ENABLE_PER_PACKET_LB 1
@@ -153,7 +157,7 @@ int NAME(struct __ctx_buff *ctx)						\
 static __always_inline bool
 redirect_to_proxy(int verdict, enum ct_status status)
 {
-	return is_defined(ENABLE_HOST_REDIRECT) && verdict > 0 &&
+	return verdict > 0 &&
 	       (status == CT_NEW || status == CT_ESTABLISHED ||  status == CT_REOPENED);
 }
 #endif
@@ -1058,7 +1062,7 @@ skip_egress_gateway:
 			if (eth_store_daddr(ctx, (__u8 *)&vtep->vtep_mac, 0) < 0)
 				return DROP_WRITE_ERROR;
 			return __encap_and_redirect_with_nodeid(ctx, vtep->tunnel_endpoint,
-								WORLD_ID, &trace);
+								SECLABEL, WORLD_ID, &trace);
 		}
 	}
 skip_vtep:
@@ -1297,11 +1301,11 @@ int tail_handle_arp(struct __ctx_buff *ctx)
 #endif /* ENABLE_ARP_RESPONDER */
 #endif /* ENABLE_IPV4 */
 
-/* Attachment/entry point is ingress for veth, egress for ipvlan.
+/* Attachment/entry point is ingress for veth.
  * It corresponds to packets leaving the container.
  */
 __section("from-container")
-int handle_xgress(struct __ctx_buff *ctx)
+int cil_from_container(struct __ctx_buff *ctx)
 {
 	__u16 proto;
 	int ret;
@@ -2113,7 +2117,7 @@ out:
  * routes are enabled.
  */
 __section("to-container")
-int handle_to_container(struct __ctx_buff *ctx)
+int cil_to_container(struct __ctx_buff *ctx)
 {
 	enum trace_point trace = TRACE_FROM_STACK;
 	__u32 magic, identity = 0;

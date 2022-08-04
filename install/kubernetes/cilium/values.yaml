@@ -252,10 +252,10 @@ bgp:
     # -- Enable announcement of node pod CIDR
     podCIDR: false
 
-# -- This feature set enables virtual BGP routers to be created via 
+# -- This feature set enables virtual BGP routers to be created via
 # CiliumBGPPeeringPolicy CRDs.
 bgpControlPlane:
-  # -- Enables the BGP control plane. 
+  # -- Enables the BGP control plane.
   enabled: false
 
 bpf:
@@ -347,6 +347,12 @@ cleanBpfState: false
 #
 # WARNING: Use with care!
 cleanState: false
+
+# -- Wait for KUBE-PROXY-CANARY iptables rule to appear in "wait-for-kube-proxy"
+# init container before launching cilium-agent.
+# More context can be found in the commit message of below PR
+# https://github.com/cilium/cilium/pull/20123
+waitForKubeProxy: false
 
 cni:
   # -- Install the CNI configuration and binary files into the filesystem.
@@ -617,13 +623,10 @@ hostPort:
   # -- Enable hostPort service support.
   enabled: false
 
-# -- Configure ClusterIP service handling in the host namespace (the node).
-hostServices:
-  # -- Enable host reachable services.
+# -- Configure socket LB
+socketLB:
+  # -- Enable socket LB
   enabled: false
-
-  # -- Supported list of protocols to apply ClusterIP translation to.
-  protocols: tcp,udp
 
   # -- Disable socket lb for non-root ns. This is used to enable Istio routing rules.
   # hostNamespaceOnly: false
@@ -862,7 +865,7 @@ hubble:
 
     # -- hubble-relay service configuration.
     service:
-      # --- The type of service used for Hubble Relay access, either ClusterIP or NodePort. 
+      # --- The type of service used for Hubble Relay access, either ClusterIP or NodePort.
       type: ClusterIP
       # --- The port to use when the service type is set to NodePort.
       nodePort: 31234
@@ -914,6 +917,25 @@ hubble:
     # port 80 if not.
     # servicePort: 80
 
+    # -- Enable prometheus metrics for hubble-relay on the configured port at
+    # /metrics
+    prometheus:
+      enabled: false
+      port: 9966
+      serviceMonitor:
+        # -- Enable service monitors.
+        # This requires the prometheus CRDs to be available (see https://github.com/prometheus-operator/prometheus-operator/blob/master/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml)
+        enabled: false
+        # -- Labels to add to ServiceMonitor hubble-relay
+        labels: {}
+        # -- Annotations to add to ServiceMonitor hubble-relay
+        annotations: {}
+        # -- Interval for scrape metrics.
+        interval: "10s"
+        # -- Specify the Kubernetes namespace where Prometheus expects to find
+        # service monitors configured.
+        # namespace: ""
+
   ui:
     # -- Whether to enable the Hubble UI.
     enabled: false
@@ -959,7 +981,7 @@ hubble:
       image:
         override: ~
         repository: "quay.io/cilium/hubble-ui-backend"
-        tag: "v0.9.0@sha256:000df6b76719f607a9edefb9af94dfd1811a6f1b6a8a9c537cba90bf12df474b"
+        tag: "v0.9.1@sha256:c4b86e0d7a38d52c6ea3d9d7b17809e5212efd97494e8bd37c8466ddd68d42d0"
         pullPolicy: "Always"
 
       # -- Additional hubble-ui backend environment variables.
@@ -979,7 +1001,7 @@ hubble:
       image:
         override: ~
         repository: "quay.io/cilium/hubble-ui"
-        tag: "v0.9.0@sha256:0ef04e9a29212925da6bdfd0ba5b581765e41a01f1cc30563cef9b30b457fea0"
+        tag: "v0.9.1@sha256:baff611b975cb12307a163c0e547e648da211384eabdafd327707ff2ec31cc24"
         pullPolicy: "Always"
 
       # -- Additional hubble-ui frontend environment variables.
@@ -1053,7 +1075,7 @@ hubble:
 
     # -- hubble-ui service configuration.
     service:
-      # --- The type of service used for Hubble UI access, either ClusterIP or NodePort. 
+      # --- The type of service used for Hubble UI access, either ClusterIP or NodePort.
       type: ClusterIP
       # --- The port to use when the service type is set to NodePort.
       nodePort: 31235
@@ -1131,14 +1153,6 @@ ipv4:
 ipv6:
   # -- Enable IPv6 support.
   enabled: false
-
-ipvlan:
-  # -- Enable the IPVLAN datapath (deprecated)
-  enabled: false
-
-  # -- masterDevice is the name of the device to use to attach secondary IPVLAN
-  # devices
-  # masterDevice: eth0
 
 # -- Configure Kubernetes specific configuration
 k8s: {}
@@ -1428,6 +1442,13 @@ tls:
 #   - vxlan (default)
 #   - geneve
 tunnel: "vxlan"
+
+# -- Configure VXLAN and Geneve tunnel port.
+# @default -- Port 8472 for VXLAN, Port 6081 for Geneve
+tunnelPort: 0
+
+# -- Configure the underlying network MTU to overwrite auto-detected MTU.
+MTU: 0
 
 # -- Disable the usage of CiliumEndpoint CRD.
 disableEndpointCRD: "false"

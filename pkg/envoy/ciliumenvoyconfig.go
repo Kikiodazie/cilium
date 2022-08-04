@@ -15,6 +15,7 @@ import (
 	envoy_config_route "github.com/cilium/proxy/go/envoy/config/route/v3"
 	envoy_config_http "github.com/cilium/proxy/go/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_config_tls "github.com/cilium/proxy/go/envoy/extensions/transport_sockets/tls/v3"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/cilium/cilium/pkg/completion"
@@ -22,10 +23,9 @@ import (
 	cilium_v2 "github.com/cilium/cilium/pkg/k8s/apis/cilium.io/v2"
 	lb "github.com/cilium/cilium/pkg/loadbalancer"
 	"github.com/cilium/cilium/pkg/option"
-	"github.com/cilium/cilium/pkg/service"
 
 	// Imports for Envoy extensions not used directly from Cilium Agent, but that we want to
-	// be registered for use in Cilium Encoy Config CRDs:
+	// be registered for use in Cilium Enco Config CRDs:
 	_ "github.com/cilium/proxy/go/envoy/extensions/clusters/dynamic_forward_proxy/v3"
 	_ "github.com/cilium/proxy/go/envoy/extensions/filters/http/dynamic_forward_proxy/v3"
 	_ "github.com/cilium/proxy/go/envoy/extensions/filters/http/ext_authz/v3"
@@ -111,8 +111,9 @@ func ParseResources(namePrefix string, anySlice []cilium_v2.XDSResource, validat
 			// Inject listener socket option for Cilium datapath
 			listener.SocketOptions = append(listener.SocketOptions, getListenerSocketMarkOption(false /* not ingress */))
 
-			// Fill in RDS config source if unset
+			// Fill in SDS & RDS config source if unset
 			for _, fc := range listener.FilterChains {
+				fillInTransportSocketXDS(fc.TransportSocket)
 				foundCiliumNetworkFilter := false
 				for i, filter := range fc.Filters {
 					if filter.Name == "cilium.network" {
@@ -217,11 +218,9 @@ func ParseResources(namePrefix string, anySlice []cilium_v2.XDSResource, validat
 					return Resources{}, fmt.Errorf("Duplicate Cluster name %q", cluster.Name)
 				}
 			}
-			if validate {
-				if err := cluster.Validate(); err != nil {
-					return Resources{}, fmt.Errorf("ParseResources: Could not validate Cluster %q (%s): %s", cluster.Name, err, cluster.String())
-				}
-			}
+
+			fillInTransportSocketXDS(cluster.TransportSocket)
+
 			// Fill in EDS config source if unset
 			if enum := cluster.GetType(); enum == envoy_config_cluster.Cluster_EDS {
 				if cluster.EdsClusterConfig == nil {
@@ -229,6 +228,12 @@ func ParseResources(namePrefix string, anySlice []cilium_v2.XDSResource, validat
 				}
 				if cluster.EdsClusterConfig.EdsConfig == nil {
 					cluster.EdsClusterConfig.EdsConfig = ciliumXDS
+				}
+			}
+
+			if validate {
+				if err := cluster.Validate(); err != nil {
+					return Resources{}, fmt.Errorf("ParseResources: Could not validate Cluster %q (%s): %s", cluster.Name, err, cluster.String())
 				}
 			}
 
@@ -656,7 +661,7 @@ func (s *XDSServer) DeleteEnvoyResources(ctx context.Context, resources Resource
 	return nil
 }
 
-func (s *XDSServer) UpsertEnvoyEndpoints(serviceName service.Name, backendMap map[string][]lb.Backend) error {
+func (s *XDSServer) UpsertEnvoyEndpoints(serviceName lb.ServiceName, backendMap map[string][]*lb.Backend) error {
 	var resources Resources
 	lbEndpoints := []*envoy_config_endpoint.LbEndpoint{}
 	for port, bes := range backendMap {
@@ -708,4 +713,50 @@ func (s *XDSServer) UpsertEnvoyEndpoints(serviceName service.Name, backendMap ma
 	// Using context.TODO() is fine as we do not upsert listener resources here - the
 	// context ends up being used only if listener(s) are included in 'resources'.
 	return s.UpsertEnvoyResources(context.TODO(), resources, nil)
+}
+
+func fillInTlsContextXDS(tls *envoy_config_tls.CommonTlsContext) bool {
+	updated := false
+	if tls != nil {
+		for _, sc := range tls.TlsCertificateSdsSecretConfigs {
+			if sc.SdsConfig == nil {
+				sc.SdsConfig = ciliumXDS
+				updated = true
+			}
+		}
+		if sdsConfig := tls.GetValidationContextSdsSecretConfig(); sdsConfig != nil {
+			if sdsConfig.SdsConfig == nil {
+				sdsConfig.SdsConfig = ciliumXDS
+				updated = true
+			}
+		}
+	}
+	return updated
+}
+
+func fillInTransportSocketXDS(ts *envoy_config_core.TransportSocket) {
+	if ts != nil {
+		if tc := ts.GetTypedConfig(); tc != nil {
+			any, err := tc.UnmarshalNew()
+			if err != nil {
+				return
+			}
+			var updated *anypb.Any
+			switch tls := any.(type) {
+			case *envoy_config_tls.DownstreamTlsContext:
+				if fillInTlsContextXDS(tls.CommonTlsContext) {
+					updated = toAny(tls)
+				}
+			case *envoy_config_tls.UpstreamTlsContext:
+				if fillInTlsContextXDS(tls.CommonTlsContext) {
+					updated = toAny(tls)
+				}
+			}
+			if updated != nil {
+				ts.ConfigType = &envoy_config_core.TransportSocket_TypedConfig{
+					TypedConfig: updated,
+				}
+			}
+		}
+	}
 }

@@ -84,6 +84,7 @@ Leblond
 Leia
 Lund
 Lx
+MTU
 Maglev
 Majkowski
 Marek
@@ -113,6 +114,7 @@ Redis
 RuleParser
 SIG
 SR-IOV
+SRv
 Sharma
 Shirokov
 Shortnames
@@ -131,6 +133,7 @@ Tu
 Twilio
 Uptime
 VM
+VNet
 VPC
 Vagrantcloud
 Vagrantfile
@@ -463,7 +466,6 @@ hostNetwork
 hostPath
 hostPort
 hostRoot
-hostServices
 hostname
 hostns
 hostonlyif
@@ -854,6 +856,7 @@ setupiptables
 sfc
 sg
 sha
+sid
 sidecarImageRegex
 sig
 skb
@@ -861,6 +864,7 @@ skipCRDCreation
 skipteardown
 sleepAfterInit
 snat
+socketLB
 socketPath
 sockmap
 sockops
@@ -868,6 +872,7 @@ sortBufferDrainTimeout
 sortBufferLenMax
 sourceContext
 src
+srv
 ssl
 stacktrace
 stap
@@ -943,6 +948,7 @@ tracepoints
 transpiling
 triaged
 ttlSecondsAfterFinished
+tunnelPort
 tuples
 ubuntu
 udp
@@ -990,8 +996,10 @@ virtualization
 vlan
 vmlinux
 volumeMounts
+vrf
 vtep
 vxlan
+waitForKubeProxy
 waitForMount
 waker
 wakeup

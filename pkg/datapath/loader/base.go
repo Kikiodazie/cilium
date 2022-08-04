@@ -27,7 +27,6 @@ import (
 	"github.com/cilium/cilium/pkg/datapath/linux/linux_defaults"
 	"github.com/cilium/cilium/pkg/datapath/linux/route"
 	linuxrouting "github.com/cilium/cilium/pkg/datapath/linux/routing"
-	datapathOption "github.com/cilium/cilium/pkg/datapath/option"
 	"github.com/cilium/cilium/pkg/datapath/prefilter"
 	"github.com/cilium/cilium/pkg/datapath/types"
 	"github.com/cilium/cilium/pkg/defaults"
@@ -321,7 +320,7 @@ func (l *Loader) Reinitialize(ctx context.Context, o datapath.BaseProgramOwner, 
 
 	args[initArgMTU] = fmt.Sprintf("%d", deviceMTU)
 
-	if option.Config.EnableHostReachableServices {
+	if option.Config.EnableSocketLB {
 		args[initArgHostReachableServices] = "true"
 		if option.Config.EnableHostServicesUDP {
 			args[initArgHostReachableServicesUDP] = "true"
@@ -339,16 +338,7 @@ func (l *Loader) Reinitialize(ctx context.Context, o datapath.BaseProgramOwner, 
 		args[initArgHostReachableServicesPeer] = "false"
 	}
 
-	devices := make([]netlink.Link, 0, len(option.Config.GetDevices()))
 	if len(option.Config.GetDevices()) != 0 {
-		for _, device := range option.Config.GetDevices() {
-			link, err := netlink.LinkByName(device)
-			if err != nil {
-				log.WithError(err).WithField("device", device).Warn("Link does not exist")
-				return err
-			}
-			devices = append(devices, link)
-		}
 		args[initArgDevices] = strings.Join(option.Config.GetDevices(), ";")
 	} else {
 		args[initArgDevices] = "<nil>"
@@ -360,8 +350,6 @@ func (l *Loader) Reinitialize(ctx context.Context, o datapath.BaseProgramOwner, 
 	case option.Config.Tunnel != option.TunnelDisabled:
 		mode = tunnelMode
 		args[initArgTunnelMode] = option.Config.Tunnel
-	case option.Config.DatapathMode == datapathOption.DatapathModeIpvlan:
-		mode = ipvlanMode
 	case option.Config.EnableHealthDatapath:
 		mode = option.DSRDispatchIPIP
 		sysSettings = append(sysSettings,
@@ -421,7 +409,7 @@ func (l *Loader) Reinitialize(ctx context.Context, o datapath.BaseProgramOwner, 
 	sysctl.ApplySettings(sysSettings)
 
 	// Datapath initialization
-	hostDev1, hostDev2, err := setupBaseDevice(devices, mode, deviceMTU)
+	hostDev1, hostDev2, err := setupBaseDevice(deviceMTU)
 	if err != nil {
 		return fmt.Errorf("failed to setup base devices in mode %s: %w", mode, err)
 	}
@@ -434,7 +422,7 @@ func (l *Loader) Reinitialize(ctx context.Context, o datapath.BaseProgramOwner, 
 		args[initArgProxyRule] = "false"
 	}
 
-	args[initTCFilterPriority] = strconv.Itoa(option.Config.TCFilterPriority)
+	args[initTCFilterPriority] = strconv.Itoa(int(option.Config.TCFilterPriority))
 
 	// "Legacy" datapath inizialization with the init.sh script
 	// TODO(mrostecki): Rewrite the whole init.sh in Go, step by step.

@@ -405,11 +405,14 @@ Name                             Labels                           Description
 FQDN
 ~~~~
 
-================================ ================================ ========================================================
-Name                             Labels                           Description
-================================ ================================ ========================================================
-``qdn_gc_deletions_total``                                        Number of FQDNs that have been cleaned on FQDN garbage collector job
-================================ ================================ ========================================================
+================================== ================================ =========== ========================================================
+Name                               Labels                           Default     Description
+================================== ================================ =========== ========================================================
+``fqdn_gc_deletions_total``                                         Enabled     Number of FQDNs that have been cleaned on FQDN garbage collector job
+``fqdn_active_names``              ``endpoint``                     Disabled    Number of domains inside the DNS cache that have not expired (by TTL), per endpoint
+``fqdn_active_ips``                ``endpoint``                     Disabled    Number of IPs inside the DNS cache associated with a domain that has not expired (by TTL), per endpoint
+``fqdn_alive_zombie_connections``  ``endpoint``                     Disabled    Number of IPs associated with domains that have expired (by TTL) yet still associated with an active connection (aka zombie), per endpoint
+================================== ================================ =========== ========================================================
 
 .. _metrics_api_rate_limiting:
 
@@ -489,16 +492,17 @@ Most Hubble metrics can be configured to add the source and/or destination
 context as a label. The options are called ``sourceContext`` and
 ``destinationContext``. The possible values are:
 
-============== ====================================================================================
-Option Value   Description
-============== ====================================================================================
-``identity``   All Cilium security identity labels
-``namespace``  Kubernetes namespace name
-``pod``        Kubernetes pod name
-``pod-short``  Short version of the Kubernetes pod name. Typically the deployment/replicaset name.
-``dns``        All known DNS names of the source or destination (comma-separated)
-``ip``         The IPv4 or IPv6 address
-============== ====================================================================================
+===================== ===================================================================================
+Option Value          Description
+===================== ===================================================================================
+``identity``          All Cilium security identity labels
+``namespace``         Kubernetes namespace name
+``pod``               Kubernetes pod name
+``pod-short``         Short version of the Kubernetes pod name. Typically the deployment/replicaset name.
+``dns``               All known DNS names of the source or destination (comma-separated)
+``ip``                The IPv4 or IPv6 address
+``reserved-identity`` Reserved identity label.
+===================== ===================================================================================
 
 When specifying the source and/or destination context, multiple contexts can be
 specified by separating them via the ``|`` symbol.
@@ -507,6 +511,16 @@ metric as a label. For example, a metric configuration of
 ``flow:destinationContext=dns|ip`` will first try to use the DNS name of the
 target for the label. If no DNS name is known for the target, it will fall back
 and use the IP address of the target instead.
+
+.. note::
+
+   There are 3 cases in which the identity label list contains multiple reserved labels:
+
+   1. ``reserved:kube-apiserver`` and ``reserved:host``
+   2. ``reserved:kube-apiserver`` and ``reserved:remote-node``
+   3. ``reserved:kube-apiserver`` and ``reserved:world``
+
+   In all of these 3 cases, ``reserved-identity`` context returns ``reserved:kube-apiserver``.
 
 .. _hubble_exported_metrics:
 
@@ -631,6 +645,26 @@ Name                             Labels                                   Descri
 ================================ ======================================== ==================================================
 ``port_distribution_total``      ``protocol``, ``port``                   Numbers of packets distributed by destination port
 ================================ ======================================== ==================================================
+
+Options
+"""""""
+
+This metric supports :ref:`Context Options<hubble_context_options>`.
+
+``policy``
+~~~~~~~~~~
+
+================================ ======================================== ===============================
+Name                             Labels                                   Description
+================================ ======================================== ===============================
+``policy_verdicts_total``        ``action``, ``direction``, ``match``     Number of policy verdict events
+================================ ======================================== ===============================
+
+.. note::
+
+   ``policy_verdicts_total`` metric does not count policy verdict events with ``reserved:host`` as
+   the source since ``reserved:host`` is allowed to connect to any local endpoints regardless of
+   whether a Cilium network policy rule explicitly allows it.
 
 Options
 """""""

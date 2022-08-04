@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"path/filepath"
@@ -489,8 +490,8 @@ const (
 	// DatapathMode is the name of the DatapathMode option
 	DatapathMode = "datapath-mode"
 
-	// IpvlanMasterDevice is the name of the IpvlanMasterDevice option
-	IpvlanMasterDevice = "ipvlan-master-device"
+	// EnableSocketLB is the name for the option to enable the socket LB
+	EnableSocketLB = "bpf-lb-sock"
 
 	// EnableHostReachableServices is the name of the EnableHostReachableServices option
 	EnableHostReachableServices = "enable-host-reachable-services"
@@ -665,6 +666,9 @@ const (
 
 	// EnableIPv6NDPName is the name of the option to enable IPv6 NDP support
 	EnableIPv6NDPName = "enable-ipv6-ndp"
+
+	// EnableSRv6 is the name of the option to enable SRv6 encapsulation support
+	EnableSRv6 = "enable-srv6"
 
 	// IPv6MCastDevice is the name of the option to select IPv6 multicast device
 	IPv6MCastDevice = "ipv6-mcast-device"
@@ -1289,12 +1293,6 @@ func LogRegisteredOptions(entry *logrus.Entry) {
 	}
 }
 
-// IpvlanConfig is the configuration used by Daemon when in ipvlan mode.
-type IpvlanConfig struct {
-	MasterDeviceIndex int
-	OperationMode     string
-}
-
 // DaemonConfig is the configuration used by Daemon.
 type DaemonConfig struct {
 	CreationTime        time.Time
@@ -1316,8 +1314,6 @@ type DaemonConfig struct {
 	// at runtime and reconfigure the datapath to load programs onto the new
 	// devices.
 	EnableRuntimeDeviceDetection bool
-
-	Ipvlan IpvlanConfig // Ipvlan related configuration
 
 	DatapathMode string // Datapath mode
 	Tunnel       string // Tunnel mode
@@ -1557,6 +1553,9 @@ type DaemonConfig struct {
 	// EnableIPv6BIGTCP enables IPv6 BIG TCP (larger GSO/GRO limits) for the node including pods.
 	EnableIPv6BIGTCP bool
 
+	// EnableSRv6 is true when SRv6 encapsulation support is enabled
+	EnableSRv6 bool
+
 	// IPv6MCastDevice is the name of device that joins IPv6's solicitation multicast group
 	IPv6MCastDevice string
 
@@ -1589,7 +1588,7 @@ type DaemonConfig struct {
 	ConfigDir                     string
 	Debug                         bool
 	DebugVerbose                  []string
-	EnableHostReachableServices   bool
+	EnableSocketLB                bool
 	EnableHostServicesTCP         bool
 	EnableHostServicesUDP         bool
 	EnableHostServicesPeer        bool
@@ -1604,7 +1603,6 @@ type DaemonConfig struct {
 	IPv6Range                     string
 	IPv4ServiceRange              string
 	IPv6ServiceRange              string
-	IpvlanMasterDevice            string
 	K8sAPIServer                  string
 	K8sKubeConfigPath             string
 	K8sClientBurst                int
@@ -2237,7 +2235,7 @@ type DaemonConfig struct {
 
 	// TCFilterPriority sets the priority of the cilium tc filter, enabling other
 	// filters to be inserted prior to the cilium filter.
-	TCFilterPriority int
+	TCFilterPriority uint16
 
 	// Enables BGP control plane features.
 	EnableBGPControlPlane bool
@@ -2647,7 +2645,7 @@ func (c *DaemonConfig) Validate() error {
 		return fmt.Errorf("%s must be set when using %s", ReadCNIConfiguration, WriteCNIConfigurationWhenReady)
 	}
 
-	if c.EnableHostReachableServices && !c.EnableHostServicesUDP && !c.EnableHostServicesTCP {
+	if c.EnableSocketLB && !c.EnableHostServicesUDP && !c.EnableHostServicesTCP {
 		return fmt.Errorf("%s must be at minimum one of [%s,%s]",
 			HostReachableServicesProtos, HostServicesTCP, HostServicesUDP)
 	}
@@ -2786,6 +2784,7 @@ func (c *DaemonConfig) Populate() {
 	c.EnableIPv6 = viper.GetBool(EnableIPv6Name)
 	c.EnableIPv6NDP = viper.GetBool(EnableIPv6NDPName)
 	c.EnableIPv6BIGTCP = viper.GetBool(EnableIPv6BIGTCP)
+	c.EnableSRv6 = viper.GetBool(EnableSRv6)
 	c.IPv6MCastDevice = viper.GetString(IPv6MCastDevice)
 	c.EnableIPSec = viper.GetBool(EnableIPSecName)
 	c.EnableWireguard = viper.GetBool(EnableWireguard)
@@ -2795,7 +2794,7 @@ func (c *DaemonConfig) Populate() {
 	c.DisableCiliumEndpointCRD = viper.GetBool(DisableCiliumEndpointCRDName)
 	c.EgressMasqueradeInterfaces = viper.GetString(EgressMasqueradeInterfaces)
 	c.BPFSocketLBHostnsOnly = viper.GetBool(BPFSocketLBHostnsOnly)
-	c.EnableHostReachableServices = viper.GetBool(EnableHostReachableServices)
+	c.EnableSocketLB = viper.GetBool(EnableHostReachableServices) || viper.GetBool(EnableSocketLB)
 	c.EnableRemoteNodeIdentity = viper.GetBool(EnableRemoteNodeIdentity)
 	c.K8sHeartbeatTimeout = viper.GetDuration(K8sHeartbeatTimeout)
 	c.EnableBPFTProxy = viper.GetBool(EnableBPFTProxy)
@@ -2892,7 +2891,6 @@ func (c *DaemonConfig) Populate() {
 	c.IPTablesLockTimeout = viper.GetDuration(IPTablesLockTimeout)
 	c.IPTablesRandomFully = viper.GetBool(IPTablesRandomFully)
 	c.IPSecKeyFile = viper.GetString(IPSecKeyFileName)
-	c.IpvlanMasterDevice = viper.GetString(IpvlanMasterDevice)
 	c.EnableMonitor = viper.GetBool(EnableMonitorName)
 	c.MonitorAggregation = viper.GetString(MonitorAggregationName)
 	c.MonitorAggregationInterval = viper.GetDuration(MonitorAggregationInterval)
@@ -2943,7 +2941,6 @@ func (c *DaemonConfig) Populate() {
 	c.BGPAnnouncePodCIDR = viper.GetBool(BGPAnnouncePodCIDR)
 	c.BGPConfigPath = viper.GetString(BGPConfigPath)
 	c.ExternalClusterIP = viper.GetBool(ExternalClusterIPName)
-	c.TCFilterPriority = viper.GetInt(TCFilterPriority)
 
 	c.EnableIPv4Masquerade = viper.GetBool(EnableIPv4Masquerade) && c.EnableIPv4
 	c.EnableIPv6Masquerade = viper.GetBool(EnableIPv6Masquerade) && c.EnableIPv6
@@ -2964,6 +2961,12 @@ func (c *DaemonConfig) Populate() {
 		}
 		c.VLANBPFBypass = append(c.VLANBPFBypass, vlanID)
 	}
+
+	tcFilterPrio := viper.GetUint32(TCFilterPriority)
+	if tcFilterPrio > math.MaxUint16 {
+		log.Fatalf("%s cannot be higher than %d", TCFilterPriority, math.MaxUint16)
+	}
+	c.TCFilterPriority = uint16(tcFilterPrio)
 
 	c.Tunnel = viper.GetString(TunnelName)
 	c.TunnelPort = viper.GetInt(TunnelPortName)
@@ -3127,7 +3130,8 @@ func (c *DaemonConfig) Populate() {
 
 	// Metrics Setup
 	defaultMetrics := metrics.DefaultMetrics()
-	for _, metric := range viper.GetStringSlice(Metrics) {
+	flagMetrics := append(viper.GetStringSlice(Metrics), c.additionalMetrics()...)
+	for _, metric := range flagMetrics {
 		switch metric[0] {
 		case '+':
 			defaultMetrics[metric[1:]] = struct{}{}
@@ -3239,6 +3243,17 @@ func (c *DaemonConfig) Populate() {
 
 	// Envoy secrets namespace to watch
 	c.EnvoySecretNamespace = viper.GetString(IngressSecretsNamespace)
+}
+
+func (c *DaemonConfig) additionalMetrics() []string {
+	addMetric := func(name string) string {
+		return "+" + metrics.Namespace + name
+	}
+	var m []string
+	if c.DNSProxyConcurrencyLimit > 0 {
+		m = append(m, addMetric(metrics.SubsystemFQDN+"_sempaphore_rejected_total"))
+	}
+	return m
 }
 
 func (c *DaemonConfig) populateDevices() {
@@ -3681,7 +3696,7 @@ func (c *DaemonConfig) KubeProxyReplacementFullyEnabled() bool {
 	return c.EnableHostPort &&
 		c.EnableNodePort &&
 		c.EnableExternalIPs &&
-		c.EnableHostReachableServices &&
+		c.EnableSocketLB &&
 		c.EnableHostServicesTCP &&
 		c.EnableHostServicesUDP &&
 		c.EnableSessionAffinity
@@ -3779,9 +3794,6 @@ func validateConfigMap(cmd *cobra.Command, m map[string]interface{}) error {
 			_, err = cast.ToFloat32E(value)
 		case "float64":
 			_, err = cast.ToFloat64E(value)
-		// remove this after PR https://github.com/cilium/cilium/pull/20282 is merged
-		case "intSlice":
-			_, err = cast.ToIntSliceE(value)
 		case "int":
 			_, err = cast.ToIntE(value)
 		case "int8":

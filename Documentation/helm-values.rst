@@ -9,6 +9,10 @@
      - Description
      - Type
      - Default
+   * - MTU
+     - Configure the underlying network MTU to overwrite auto-detected MTU.
+     - int
+     - ``0``
    * - affinity
      - Affinity for cilium-agent.
      - object
@@ -70,7 +74,7 @@
      - bool
      - ``false``
    * - bgpControlPlane
-     - This feature set enables virtual BGP routers to be created via  CiliumBGPPeeringPolicy CRDs.
+     - This feature set enables virtual BGP routers to be created via CiliumBGPPeeringPolicy CRDs.
      - object
      - ``{"enabled":false}``
    * - bgpControlPlane.enabled
@@ -705,18 +709,6 @@
      - Enable hostPort service support.
      - bool
      - ``false``
-   * - hostServices
-     - Configure ClusterIP service handling in the host namespace (the node).
-     - object
-     - ``{"enabled":false,"protocols":"tcp,udp"}``
-   * - hostServices.enabled
-     - Enable host reachable services.
-     - bool
-     - ``false``
-   * - hostServices.protocols
-     - Supported list of protocols to apply ClusterIP translation to.
-     - string
-     - ``"tcp,udp"``
    * - hubble.enabled
      - Enable Hubble (true by default).
      - bool
@@ -825,6 +817,26 @@
      - The priority class to use for hubble-relay
      - string
      - ``""``
+   * - hubble.relay.prometheus
+     - Enable prometheus metrics for hubble-relay on the configured port at /metrics
+     - object
+     - ``{"enabled":false,"port":9966,"serviceMonitor":{"annotations":{},"enabled":false,"interval":"10s","labels":{}}}``
+   * - hubble.relay.prometheus.serviceMonitor.annotations
+     - Annotations to add to ServiceMonitor hubble-relay
+     - object
+     - ``{}``
+   * - hubble.relay.prometheus.serviceMonitor.enabled
+     - Enable service monitors. This requires the prometheus CRDs to be available (see https://github.com/prometheus-operator/prometheus-operator/blob/master/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml)
+     - bool
+     - ``false``
+   * - hubble.relay.prometheus.serviceMonitor.interval
+     - Interval for scrape metrics.
+     - string
+     - ``"10s"``
+   * - hubble.relay.prometheus.serviceMonitor.labels
+     - Labels to add to ServiceMonitor hubble-relay
+     - object
+     - ``{}``
    * - hubble.relay.replicas
      - Number of replicas run for the hubble-relay deployment.
      - int
@@ -972,7 +984,7 @@
    * - hubble.ui.backend.image
      - Hubble-ui backend image.
      - object
-     - ``{"override":null,"pullPolicy":"Always","repository":"quay.io/cilium/hubble-ui-backend","tag":"v0.9.0@sha256:000df6b76719f607a9edefb9af94dfd1811a6f1b6a8a9c537cba90bf12df474b"}``
+     - ``{"override":null,"pullPolicy":"Always","repository":"quay.io/cilium/hubble-ui-backend","tag":"v0.9.1@sha256:c4b86e0d7a38d52c6ea3d9d7b17809e5212efd97494e8bd37c8466ddd68d42d0"}``
    * - hubble.ui.backend.resources
      - Resource requests and limits for the 'backend' container of the 'hubble-ui' deployment.
      - object
@@ -988,7 +1000,7 @@
    * - hubble.ui.frontend.image
      - Hubble-ui frontend image.
      - object
-     - ``{"override":null,"pullPolicy":"Always","repository":"quay.io/cilium/hubble-ui","tag":"v0.9.0@sha256:0ef04e9a29212925da6bdfd0ba5b581765e41a01f1cc30563cef9b30b457fea0"}``
+     - ``{"override":null,"pullPolicy":"Always","repository":"quay.io/cilium/hubble-ui","tag":"v0.9.1@sha256:baff611b975cb12307a163c0e547e648da211384eabdafd327707ff2ec31cc24"}``
    * - hubble.ui.frontend.resources
      - Resource requests and limits for the 'frontend' container of the 'hubble-ui' deployment.
      - object
@@ -1159,10 +1171,6 @@
      - ``true``
    * - ipv6.enabled
      - Enable IPv6 support.
-     - bool
-     - ``false``
-   * - ipvlan.enabled
-     - Enable the IPVLAN datapath (deprecated)
      - bool
      - ``false``
    * - k8s
@@ -1621,6 +1629,14 @@
      - Do not run Cilium agent when running with clean mode. Useful to completely uninstall Cilium as it will stop Cilium from starting and create artifacts in the node.
      - bool
      - ``false``
+   * - socketLB
+     - Configure socket LB
+     - object
+     - ``{"enabled":false}``
+   * - socketLB.enabled
+     - Enable socket LB
+     - bool
+     - ``false``
    * - sockops
      - Configure BPF socket operations configuration
      - object
@@ -1677,6 +1693,10 @@
      - Configure the encapsulation configuration for communication between nodes. Possible values:   - disabled   - vxlan (default)   - geneve
      - string
      - ``"vxlan"``
+   * - tunnelPort
+     - Configure VXLAN and Geneve tunnel port.
+     - int
+     - Port 8472 for VXLAN, Port 6081 for Geneve
    * - updateStrategy
      - Cilium agent update strategy
      - object
@@ -1701,6 +1721,10 @@
      - VTEP CIDRs Mask that applies to all VTEP CIDRs, for example "255.255.255.0"
      - string
      - ``""``
+   * - waitForKubeProxy
+     - Wait for KUBE-PROXY-CANARY iptables rule to appear in "wait-for-kube-proxy" init container before launching cilium-agent. More context can be found in the commit message of below PR https://github.com/cilium/cilium/pull/20123
+     - bool
+     - ``false``
    * - wellKnownIdentities.enabled
      - Enable the use of well-known identities.
      - bool

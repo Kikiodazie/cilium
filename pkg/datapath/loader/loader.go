@@ -20,7 +20,6 @@ import (
 	"github.com/cilium/cilium/pkg/datapath/link"
 	"github.com/cilium/cilium/pkg/datapath/linux/route"
 	"github.com/cilium/cilium/pkg/datapath/loader/metrics"
-	datapathOption "github.com/cilium/cilium/pkg/datapath/option"
 	"github.com/cilium/cilium/pkg/defaults"
 	"github.com/cilium/cilium/pkg/elf"
 	"github.com/cilium/cilium/pkg/logging"
@@ -33,14 +32,16 @@ import (
 const (
 	Subsystem = "datapath-loader"
 
-	symbolFromEndpoint = "from-container"
-	symbolToEndpoint   = "to-container"
-	symbolFromNetwork  = "from-network"
+	symbolFromEndpoint = "cil_from_container"
+	symbolToEndpoint   = "cil_to_container"
+	symbolFromNetwork  = "cil_from_network"
 
-	symbolFromHostNetdevEp = "from-netdev"
-	symbolToHostNetdevEp   = "to-netdev"
-	symbolFromHostEp       = "from-host"
-	symbolToHostEp         = "to-host"
+	symbolFromHostNetdevEp = "cil_from_netdev"
+	symbolToHostNetdevEp   = "cil_to_netdev"
+	symbolFromHostEp       = "cil_from_host"
+	symbolToHostEp         = "cil_to_host"
+
+	symbolFromHostNetdevXDP = "cil_xdp_entry"
 
 	dirIngress = "ingress"
 	dirEgress  = "egress"
@@ -155,8 +156,7 @@ func patchHostNetdevDatapath(ep datapath.Endpoint, objPath, dstPath, ifName stri
 		return err
 	}
 
-	if !option.Config.EnableHostLegacyRouting ||
-		option.Config.DatapathMode == datapathOption.DatapathModeIpvlan {
+	if !option.Config.EnableHostLegacyRouting {
 		opts["SECCTX_FROM_IPCACHE"] = uint32(SecctxFromIpcacheEnabled)
 	} else {
 		opts["SECCTX_FROM_IPCACHE"] = uint32(SecctxFromIpcacheDisabled)
@@ -204,20 +204,18 @@ func (l *Loader) reloadHostDatapath(ctx context.Context, ep datapath.Endpoint, o
 	objPaths[0], objPaths[1] = objPath, objPath
 	interfaceNames[0], interfaceNames[1] = ep.InterfaceName(), ep.InterfaceName()
 
-	if datapathHasMultipleMasterDevices() {
-		if _, err := netlink.LinkByName(defaults.SecondHostDevice); err != nil {
-			log.WithError(err).WithField("device", defaults.SecondHostDevice).Error("Link does not exist")
+	if _, err := netlink.LinkByName(defaults.SecondHostDevice); err != nil {
+		log.WithError(err).WithField("device", defaults.SecondHostDevice).Error("Link does not exist")
+		return err
+	} else {
+		interfaceNames = append(interfaceNames, defaults.SecondHostDevice)
+		symbols = append(symbols, symbolToHostEp)
+		directions = append(directions, dirIngress)
+		secondDevObjPath := path.Join(ep.StateDir(), hostEndpointPrefix+"_"+defaults.SecondHostDevice+".o")
+		if err := patchHostNetdevDatapath(ep, objPath, secondDevObjPath, defaults.SecondHostDevice, nil); err != nil {
 			return err
-		} else {
-			interfaceNames = append(interfaceNames, defaults.SecondHostDevice)
-			symbols = append(symbols, symbolToHostEp)
-			directions = append(directions, dirIngress)
-			secondDevObjPath := path.Join(ep.StateDir(), hostEndpointPrefix+"_"+defaults.SecondHostDevice+".o")
-			if err := patchHostNetdevDatapath(ep, objPath, secondDevObjPath, defaults.SecondHostDevice, nil); err != nil {
-				return err
-			}
-			objPaths = append(objPaths, secondDevObjPath)
 		}
+		objPaths = append(objPaths, secondDevObjPath)
 	}
 
 	bpfMasqIPv4Addrs := node.GetMasqIPv4AddrsWithDevices()
@@ -255,7 +253,7 @@ func (l *Loader) reloadHostDatapath(ctx context.Context, ep datapath.Endpoint, o
 
 	for i, interfaceName := range interfaceNames {
 		symbol := symbols[i]
-		finalize, err := replaceDatapath(ctx, interfaceName, objPaths[i], symbol, directions[i], false, "")
+		finalize, err := replaceDatapath(ctx, interfaceName, objPaths[i], symbol, directions[i], "")
 		if err != nil {
 			scopedLog := ep.Logger(Subsystem).WithFields(logrus.Fields{
 				logfields.Path: objPath,
@@ -276,12 +274,6 @@ func (l *Loader) reloadHostDatapath(ctx context.Context, ep datapath.Endpoint, o
 	return nil
 }
 
-func datapathHasMultipleMasterDevices() bool {
-	// When using ipvlan, HOST_DEV2 is equal to HOST_DEV1 in init.sh and we
-	// have a single master device.
-	return option.Config.DatapathMode != datapathOption.DatapathModeIpvlan
-}
-
 func (l *Loader) reloadDatapath(ctx context.Context, ep datapath.Endpoint, dirs *directoryInfo) error {
 	// Replace the current program
 	objPath := path.Join(dirs.Output, endpointObj)
@@ -291,21 +283,8 @@ func (l *Loader) reloadDatapath(ctx context.Context, ep datapath.Endpoint, dirs 
 		if err := l.reloadHostDatapath(ctx, ep, objPath); err != nil {
 			return err
 		}
-	} else if ep.HasIpvlanDataPath() {
-		if err := graftDatapath(ctx, ep.MapPath(), objPath, symbolFromEndpoint); err != nil {
-			scopedLog := ep.Logger(Subsystem).WithFields(logrus.Fields{
-				logfields.Path: objPath,
-			})
-			// Don't log an error here if the context was canceled or timed out;
-			// this log message should only represent failures with respect to
-			// loading the program.
-			if ctx.Err() == nil {
-				scopedLog.WithError(err).Warn("JoinEP: Failed to load program")
-			}
-			return err
-		}
 	} else {
-		finalize, err := replaceDatapath(ctx, ep.InterfaceName(), objPath, symbolFromEndpoint, dirIngress, false, "")
+		finalize, err := replaceDatapath(ctx, ep.InterfaceName(), objPath, symbolFromEndpoint, dirIngress, "")
 		if err != nil {
 			scopedLog := ep.Logger(Subsystem).WithFields(logrus.Fields{
 				logfields.Path: objPath,
@@ -315,14 +294,14 @@ func (l *Loader) reloadDatapath(ctx context.Context, ep datapath.Endpoint, dirs 
 			// this log message should only represent failures with respect to
 			// loading the program.
 			if ctx.Err() == nil {
-				scopedLog.WithError(err).Warn("JoinEP: Failed to load program")
+				scopedLog.WithError(err).Warn("JoinEP: Failed to attach ingress program")
 			}
 			return err
 		}
 		defer finalize()
 
 		if ep.RequireEgressProg() {
-			finalize, err := replaceDatapath(ctx, ep.InterfaceName(), objPath, symbolToEndpoint, dirEgress, false, "")
+			finalize, err := replaceDatapath(ctx, ep.InterfaceName(), objPath, symbolToEndpoint, dirEgress, "")
 			if err != nil {
 				scopedLog := ep.Logger(Subsystem).WithFields(logrus.Fields{
 					logfields.Path: objPath,
@@ -332,7 +311,7 @@ func (l *Loader) reloadDatapath(ctx context.Context, ep datapath.Endpoint, dirs 
 				// this log message should only represent failures with respect to
 				// loading the program.
 				if ctx.Err() == nil {
-					scopedLog.WithError(err).Warn("JoinEP: Failed to load program")
+					scopedLog.WithError(err).Warn("JoinEP: Failed to attach egress program")
 				}
 				return err
 			}
@@ -369,7 +348,7 @@ func (l *Loader) replaceNetworkDatapath(ctx context.Context, interfaces []string
 		log.WithError(err).Fatal("failed to compile encryption programs")
 	}
 	for _, iface := range option.Config.EncryptInterface {
-		finalize, err := replaceDatapath(ctx, iface, networkObj, symbolFromNetwork, dirIngress, false, "")
+		finalize, err := replaceDatapath(ctx, iface, networkObj, symbolFromNetwork, dirIngress, "")
 		if err != nil {
 			log.WithField(logfields.Interface, iface).WithError(err).Fatal("Load encryption network failed")
 		}
@@ -476,7 +455,7 @@ func (l *Loader) CompileOrLoad(ctx context.Context, ep datapath.Endpoint, stats 
 	return l.ReloadDatapath(ctx, ep, stats)
 }
 
-// ReloadDatapath reloads the BPF datapath pgorams for the specified endpoint.
+// ReloadDatapath reloads the BPF datapath programs for the specified endpoint.
 func (l *Loader) ReloadDatapath(ctx context.Context, ep datapath.Endpoint, stats *metrics.SpanStat) (err error) {
 	dirs := directoryInfo{
 		Library: option.Config.BpfDir,

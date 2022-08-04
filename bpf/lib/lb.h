@@ -647,6 +647,18 @@ lb6_select_backend_id(struct __ctx_buff *ctx __maybe_unused,
 	index = hash_from_tuple_v6(tuple) % LB_MAGLEV_LUT_SIZE;
         return map_array_get_32(backend_ids, index, (LB_MAGLEV_LUT_SIZE - 1) << 2);
 }
+#elif LB_SELECTION == LB_SELECTION_FIRST
+/* Backend selection for tests that always chooses first slot. */
+static __always_inline __u32
+lb6_select_backend_id(struct __ctx_buff *ctx __maybe_unused,
+		      struct lb6_key *key __maybe_unused,
+		      const struct ipv6_ct_tuple *tuple,
+		      const struct lb6_service *svc)
+{
+	struct lb6_service *be = lb6_lookup_backend_slot(ctx, key, 1);
+
+	return be ? be->backend_id : 0;
+}
 #else
 # error "Invalid load balancer backend selection algorithm!"
 #endif /* LB_SELECTION */
@@ -887,7 +899,12 @@ static __always_inline int lb6_local(const void *map, struct __ctx_buff *ctx,
 	 * session we are likely to get a TCP RST.
 	 */
 	backend = lb6_lookup_backend(ctx, state->backend_id);
-	if (!backend) {
+	if (unlikely(!backend || backend->flags != BE_STATE_ACTIVE)) {
+		/* Drain existing connections, but redirect new ones to only
+		 * active backends.
+		 */
+		if (backend && !state->syn)
+			goto update_state;
 		key->backend_slot = 0;
 		svc = lb6_lookup_service(key, false);
 		if (!svc)
@@ -899,7 +916,6 @@ static __always_inline int lb6_local(const void *map, struct __ctx_buff *ctx,
 		state->backend_id = backend_id;
 		ct_update6_backend_id(map, tuple, state);
 	}
-
 update_state:
 	/* Restore flags so that SERVICE flag is only used in used when the
 	 * service lookup happens and future lookups use EGRESS or INGRESS.
@@ -908,7 +924,6 @@ update_state:
 	ipv6_addr_copy(&tuple->daddr, &backend->address);
 	addr = &tuple->daddr;
 	state->rev_nat_index = svc->rev_nat_index;
-
 #ifdef ENABLE_SESSION_AFFINITY
 	if (lb6_svc_is_affinity(svc))
 		lb6_update_affinity_by_addr(svc, &client_id,
@@ -1268,6 +1283,18 @@ lb4_select_backend_id(struct __ctx_buff *ctx __maybe_unused,
 	index = hash_from_tuple_v4(tuple) % LB_MAGLEV_LUT_SIZE;
         return map_array_get_32(backend_ids, index, (LB_MAGLEV_LUT_SIZE - 1) << 2);
 }
+#elif LB_SELECTION == LB_SELECTION_FIRST
+/* Backend selection for tests that always chooses first slot. */
+static __always_inline __u32
+lb4_select_backend_id(struct __ctx_buff *ctx,
+		      struct lb4_key *key,
+		      const struct ipv4_ct_tuple *tuple __maybe_unused,
+		      const struct lb4_service *svc)
+{
+	struct lb4_service *be = lb4_lookup_backend_slot(ctx, key, 1);
+
+	return be ? be->backend_id : 0;
+}
 #else
 # error "Invalid load balancer backend selection algorithm!"
 #endif /* LB_SELECTION */
@@ -1543,7 +1570,12 @@ static __always_inline int lb4_local(const void *map, struct __ctx_buff *ctx,
 	 * session we are likely to get a TCP RST.
 	 */
 	backend = lb4_lookup_backend(ctx, state->backend_id);
-	if (!backend) {
+	if (unlikely(!backend || backend->flags != BE_STATE_ACTIVE)) {
+		/* Drain existing connections, but redirect new ones to only
+		 * active backends.
+		 */
+		if (backend && !state->syn)
+			goto update_state;
 		key->backend_slot = 0;
 		svc = lb4_lookup_service(key, false);
 		if (!svc)
@@ -1555,7 +1587,6 @@ static __always_inline int lb4_local(const void *map, struct __ctx_buff *ctx,
 		state->backend_id = backend_id;
 		ct_update4_backend_id(map, tuple, state);
 	}
-
 update_state:
 	/* Restore flags so that SERVICE flag is only used in used when the
 	 * service lookup happens and future lookups use EGRESS or INGRESS.
@@ -1563,13 +1594,11 @@ update_state:
 	tuple->flags = flags;
 	state->rev_nat_index = svc->rev_nat_index;
 	state->addr = new_daddr = backend->address;
-
 #ifdef ENABLE_SESSION_AFFINITY
 	if (lb4_svc_is_affinity(svc))
 		lb4_update_affinity_by_addr(svc, &client_id,
 					    state->backend_id);
 #endif
-
 #ifndef DISABLE_LOOPBACK_LB
 	/* Special loopback case: The origin endpoint has transmitted to a
 	 * service which is being translated back to the source. This would

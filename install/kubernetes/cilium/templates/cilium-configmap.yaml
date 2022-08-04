@@ -48,6 +48,7 @@
   {{- if .Values.azure.enabled }}
       {{- $azureUsePrimaryAddress = "false" -}}
   {{- end }}
+  {{- $defaultKubeProxyReplacement = "disabled" -}}
 {{- end -}}
 
 {{- $ipam := (coalesce .Values.ipam.mode $defaultIPAM) -}}
@@ -55,6 +56,7 @@
 {{- $bpfCtAnyMax := (coalesce .Values.bpf.ctAnyMax $defaultBpfCtAnyMax) -}}
 {{- $kubeProxyReplacement := (coalesce .Values.kubeProxyReplacement $defaultKubeProxyReplacement) -}}
 {{- $azureUsePrimaryAddress = (coalesce .Values.azure.usePrimaryAddress $azureUsePrimaryAddress) -}}
+{{- $socketLB := (coalesce .Values.socketLB .Values.hostServices) -}}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -389,8 +391,12 @@ data:
   tunnel: {{ .Values.tunnel | quote }}
 {{- end }}
 
-{{- if hasKey .Values "tunnelPort" }}
+{{- if .Values.tunnelPort }}
   tunnel-port: "{{ .Values.tunnelPort }}"
+{{- end }}
+
+{{- if .Values.MTU }}
+  mtu: "{{ .Values.MTU }}"
 {{- end }}
 
 {{- if .Values.eni.enabled }}
@@ -498,13 +504,6 @@ data:
   {{- end }}
 {{- end }}
 
-{{- if hasKey .Values "datapathMode" }}
-{{- if eq .Values.datapathMode "ipvlan" }}
-  datapath-mode: ipvlan
-  ipvlan-master-device: {{ .Values.ipvlan.masterDevice }}
-{{- end }}
-{{- end }}
-
   enable-xt-socket-fallback: {{ .Values.enableXTSocketFallback | quote }}
   install-iptables-rules: {{ .Values.installIptablesRules | quote }}
 {{- if or (.Values.azure.enabled) (.Values.eni.enabled) (.Values.gke.enabled) (ne .Values.cni.chainingMode "none") }}
@@ -573,15 +572,18 @@ data:
   kube-proxy-replacement-healthz-bind-address: {{ default "" .Values.kubeProxyReplacementHealthzBindAddr | quote}}
 {{- end }}
 
-{{- if hasKey .Values "hostServices" }}
-{{- if .Values.hostServices.enabled }}
-  enable-host-reachable-services: {{ .Values.hostServices.enabled | quote }}
+{{- if $socketLB }}
+{{- if hasKey $socketLB "enabled" }}
+  bpf-lb-sock: {{ $socketLB.enabled | quote }}
 {{- end }}
+{{- if hasKey $socketLB "hostNamespaceOnly" }}
+  bpf-lb-sock-hostns-only: {{ $socketLB.hostNamespaceOnly | quote }}
+{{- end }}
+{{- end }}
+
+{{- if hasKey .Values "hostServices" }}
 {{- if ne .Values.hostServices.protocols "tcp,udp" }}
   host-reachable-services-protos: {{ .Values.hostServices.protocols }}
-{{- end }}
-{{- if hasKey .Values.hostServices "hostNamespaceOnly" }}
-  bpf-lb-sock-hostns-only: {{ .Values.hostServices.hostNamespaceOnly | quote }}
 {{- end }}
 {{- end }}
 {{- if hasKey .Values "hostPort" }}

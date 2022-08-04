@@ -18,7 +18,7 @@ HELM_CHART_DIR=${3:-/vagrant/kubernetes/cilium}
 # * "kind-worker2" runs a netperf server.
 #
 
-kind create cluster --config kind-config.yaml
+kind create cluster --config kind-config.yaml --image=brb0/kindest-node:v1.23.3-ubuntu-22.04
 
 # Install Cilium with IPv6 BIG TCP enabled
 helm install cilium ${HELM_CHART_DIR} \
@@ -78,6 +78,9 @@ fi
 # test connectivity
 NETPERF_SERVER=`kubectl get pod netperf-server -o jsonpath='{.status.podIPs}' | jq -r -c '.[].ip | select(contains(":") == true)'`
 kubectl exec netperf-client -- netperf  -t TCP_RR -H ${NETPERF_SERVER} -- -r80000:80000 -O MIN_LATENCY,P90_LATENCY,P99_LATENCY,THROUGHPUT
+
+# cleanup
+kind delete cluster
 
 #####################
 

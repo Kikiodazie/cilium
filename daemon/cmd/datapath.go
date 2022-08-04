@@ -41,6 +41,7 @@ import (
 	"github.com/cilium/cilium/pkg/maps/neighborsmap"
 	"github.com/cilium/cilium/pkg/maps/policymap"
 	"github.com/cilium/cilium/pkg/maps/signalmap"
+	"github.com/cilium/cilium/pkg/maps/srv6map"
 	"github.com/cilium/cilium/pkg/maps/tunnel"
 	"github.com/cilium/cilium/pkg/maps/vtep"
 	"github.com/cilium/cilium/pkg/mtu"
@@ -341,6 +342,10 @@ func (d *Daemon) initMaps() error {
 		}
 	}
 
+	if option.Config.EnableSRv6 {
+		srv6map.CreateMaps()
+	}
+
 	if option.Config.EnableVTEP {
 		if _, err := vtep.VtepMAP.OpenOrCreate(); err != nil {
 			return err
@@ -349,7 +354,7 @@ func (d *Daemon) initMaps() error {
 
 	pm := probes.NewProbeManager()
 	supportedMapTypes := pm.GetMapTypes()
-	createSockRevNatMaps := option.Config.EnableHostReachableServices &&
+	createSockRevNatMaps := option.Config.EnableSocketLB &&
 		option.Config.EnableHostServicesUDP && supportedMapTypes.HaveLruHashMapType
 	if err := d.svc.InitMaps(option.Config.EnableIPv6, option.Config.EnableIPv4,
 		createSockRevNatMaps, option.Config.RestoreState); err != nil {
@@ -529,9 +534,6 @@ func setupRouteToVtepCidr() error {
 		return fmt.Errorf("failed to list routes: %w", err)
 	}
 	for _, rt := range routes {
-		log.WithFields(logrus.Fields{
-			logfields.IPAddr: rt.Dst.String(),
-		}).Info("VTEP route")
 		rtCIDR, err := cidr.ParseCIDR(rt.Dst.String())
 		if err != nil {
 			return fmt.Errorf("Invalid VTEP Route CIDR: %w", err)

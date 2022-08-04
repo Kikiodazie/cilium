@@ -26,6 +26,10 @@
  */
 #define SKIP_ICMPV6_ECHO_HANDLING
 
+/* Controls the inclusion of the CILIUM_CALL_SRV6 section in the object file.
+ */
+#define SKIP_SRV6_HANDLING
+
 /* The XDP datapath does not take care of health probes from the local node,
  * thus do not compile it in.
  */
@@ -274,7 +278,7 @@ static __always_inline int check_filters(struct __ctx_buff *ctx)
 }
 
 __section("from-netdev")
-int bpf_xdp_entry(struct __ctx_buff *ctx)
+int cil_xdp_entry(struct __ctx_buff *ctx)
 {
 	return check_filters(ctx);
 }

@@ -29,7 +29,6 @@ import (
 	"github.com/cilium/cilium/pkg/option"
 	"github.com/cilium/cilium/pkg/policy"
 	"github.com/cilium/cilium/pkg/policy/api"
-	"github.com/cilium/cilium/pkg/service"
 )
 
 // Hook up gocheck into the "go test" runner.
@@ -173,15 +172,15 @@ func (f *fakeSvcManager) UpsertService(p *loadbalancer.SVC) (bool, loadbalancer.
 	panic("OnUpsertService() was called and is not set!")
 }
 
-func (f *fakeSvcManager) RegisterL7LBService(serviceName, resourceName service.Name, ports []string, proxyPort uint16) error {
+func (f *fakeSvcManager) RegisterL7LBService(serviceName, resourceName loadbalancer.ServiceName, ports []string, proxyPort uint16) error {
 	return nil
 }
 
-func (f *fakeSvcManager) RegisterL7LBServiceBackendSync(serviceName, resourceName service.Name, ports []string) error {
+func (f *fakeSvcManager) RegisterL7LBServiceBackendSync(serviceName, resourceName loadbalancer.ServiceName, ports []string) error {
 	return nil
 }
 
-func (f *fakeSvcManager) RemoveL7LBService(serviceName, resourceName service.Name) error {
+func (f *fakeSvcManager) RemoveL7LBService(serviceName, resourceName loadbalancer.ServiceName) error {
 	return nil
 }
 
@@ -363,7 +362,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ClusterIP(c *C) {
 		lb1.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *lb1,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -382,7 +381,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ClusterIP(c *C) {
 		// lb2.Hash(): {
 		// 	Type:     loadbalancer.SVCTypeClusterIP,
 		// 	Frontend: *lb2,
-		// 	Backends: []loadbalancer.Backend{
+		// 	Backends: []*loadbalancer.Backend{
 		// 		{
 		// 			L3n4Addr: loadbalancer.L3n4Addr{
 		// 				IP: net.ParseIP("10.0.0.2"),
@@ -397,7 +396,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ClusterIP(c *C) {
 		lb3.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *lb3,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -422,7 +421,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ClusterIP(c *C) {
 		lb1.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *lb1,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -451,7 +450,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ClusterIP(c *C) {
 		// lb2.Hash(): {
 		// 	Type:     loadbalancer.SVCTypeClusterIP,
 		// 	Frontend: *lb2,
-		// 	Backends: []loadbalancer.Backend{
+		// 	Backends: []*loadbalancer.Backend{
 		// 		{
 		// 			L3n4Addr: loadbalancer.L3n4Addr{
 		// 				IP: net.ParseIP("10.0.0.2"),
@@ -475,7 +474,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ClusterIP(c *C) {
 		lb3.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *lb3,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -637,7 +636,7 @@ func (s *K8sWatcherSuite) TestChangeSVCPort(c *C) {
 		{
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *lb1,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -653,7 +652,7 @@ func (s *K8sWatcherSuite) TestChangeSVCPort(c *C) {
 		{
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *lb2,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -818,7 +817,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_NodePort(c *C) {
 		clusterIP1.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP1,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -837,7 +836,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_NodePort(c *C) {
 		// clusterIP2.Hash(): {
 		// 	Type:     loadbalancer.SVCTypeClusterIP,
 		// 	Frontend: *clusterIP2,
-		// 	Backends: []loadbalancer.Backend{
+		// 	Backends: []*loadbalancer.Backend{
 		// 		{
 		// 			L3n4Addr: loadbalancer.L3n4Addr{
 		// 				IP: net.ParseIP("10.0.0.2"),
@@ -852,7 +851,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_NodePort(c *C) {
 		clusterIP3.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP3,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -876,7 +875,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_NodePort(c *C) {
 		upsert1stWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -899,7 +898,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_NodePort(c *C) {
 	// 	upsert1stWanted[nodePort.Hash()] = loadbalancer.SVC{
 	// 		Type:     loadbalancer.SVCTypeNodePort,
 	// 		Frontend: *nodePort,
-	// 		Backends: []loadbalancer.Backend{
+	// 		Backends: []*loadbalancer.Backend{
 	// 			{
 	// 				L3n4Addr: loadbalancer.L3n4Addr{
 	// 					IP: net.ParseIP("10.0.0.2"),
@@ -921,7 +920,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_NodePort(c *C) {
 		upsert1stWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -946,7 +945,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_NodePort(c *C) {
 		clusterIP1.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP1,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -975,7 +974,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_NodePort(c *C) {
 		// clusterIP2.Hash(): {
 		// 	Type:     loadbalancer.SVCTypeClusterIP,
 		// 	Frontend: *clusterIP2,
-		// 	Backends: []loadbalancer.Backend{
+		// 	Backends: []*loadbalancer.Backend{
 		// 		{
 		// 			L3n4Addr: loadbalancer.L3n4Addr{
 		// 				IP: net.ParseIP("10.0.0.2"),
@@ -999,7 +998,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_NodePort(c *C) {
 		clusterIP3.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP3,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1028,7 +1027,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_NodePort(c *C) {
 		upsert2ndWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1056,7 +1055,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_NodePort(c *C) {
 	// 	upsert2ndWanted[nodePort.Hash()] = loadbalancer.SVC{
 	// 		Type:     loadbalancer.SVCTypeNodePort,
 	// 		Frontend: *nodePort,
-	// 		Backends: []loadbalancer.Backend{
+	// 		Backends: []*loadbalancer.Backend{
 	// 			{
 	// 				L3n4Addr: loadbalancer.L3n4Addr{
 	// 					IP: net.ParseIP("10.0.0.2"),
@@ -1082,7 +1081,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_NodePort(c *C) {
 		upsert2ndWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1307,7 +1306,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_GH9576_1(c *C) {
 		clusterIP1.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP1,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1323,7 +1322,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_GH9576_1(c *C) {
 		clusterIP2.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP2,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1341,7 +1340,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_GH9576_1(c *C) {
 		upsert1stWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1359,7 +1358,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_GH9576_1(c *C) {
 		upsert1stWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1380,7 +1379,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_GH9576_1(c *C) {
 		clusterIP2.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP2,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1396,7 +1395,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_GH9576_1(c *C) {
 		clusterIP3.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP3,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1600,7 +1599,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_GH9576_2(c *C) {
 		clusterIP1.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP1,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1616,7 +1615,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_GH9576_2(c *C) {
 		clusterIP2.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP2,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1634,7 +1633,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_GH9576_2(c *C) {
 		upsert1stWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1652,7 +1651,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_GH9576_2(c *C) {
 		upsert1stWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1671,7 +1670,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_GH9576_2(c *C) {
 		clusterIP1.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP1,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1693,7 +1692,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_GH9576_2(c *C) {
 		upsert2ndWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1896,7 +1895,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		clusterIP1.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP1,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1915,7 +1914,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		// clusterIP2.Hash(): {
 		// 	Type:     loadbalancer.SVCTypeClusterIP,
 		// 	Frontend: *clusterIP2,
-		// 	Backends: []loadbalancer.Backend{
+		// 	Backends: []*loadbalancer.Backend{
 		// 		{
 		// 			L3n4Addr: loadbalancer.L3n4Addr{
 		// 				IP: net.ParseIP("10.0.0.2"),
@@ -1930,7 +1929,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		clusterIP3.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP3,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1955,7 +1954,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		upsert1stWanted[externalIP.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeExternalIPs,
 			Frontend: *externalIP,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -1973,7 +1972,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 	// 	upsert1stWanted[externalIP.Hash()] = loadbalancer.SVC{
 	// 		Type:     loadbalancer.SVCTypeExternalIPs,
 	// 		Frontend: *externalIP,
-	// 		Backends: []loadbalancer.Backend{
+	// 		Backends: []*loadbalancer.Backend{
 	// 			{
 	// 				L3n4Addr: loadbalancer.L3n4Addr{
 	// 					IP: net.ParseIP("10.0.0.2"),
@@ -1990,7 +1989,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		upsert1stWanted[externalIP.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeExternalIPs,
 			Frontend: *externalIP,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -2014,7 +2013,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		upsert1stWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -2037,7 +2036,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 	// 	upsert1stWanted[nodePort.Hash()] = loadbalancer.SVC{
 	// 		Type:     loadbalancer.SVCTypeNodePort,
 	// 		Frontend: *nodePort,
-	// 		Backends: []loadbalancer.Backend{
+	// 		Backends: []*loadbalancer.Backend{
 	// 			{
 	// 				L3n4Addr: loadbalancer.L3n4Addr{
 	// 					IP: net.ParseIP("10.0.0.2"),
@@ -2059,7 +2058,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		upsert1stWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -2078,7 +2077,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		clusterIP1.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP1,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -2107,7 +2106,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		// clusterIP2.Hash(): {
 		// 	Type:     loadbalancer.SVCTypeClusterIP,
 		// 	Frontend: *clusterIP2,
-		// 	Backends: []loadbalancer.Backend{
+		// 	Backends: []*loadbalancer.Backend{
 		// 		{
 		// 			L3n4Addr: loadbalancer.L3n4Addr{
 		// 				IP: net.ParseIP("10.0.0.2"),
@@ -2131,7 +2130,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		clusterIP3.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP3,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -2160,7 +2159,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		upsert2ndWanted[externalIP.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeExternalIPs,
 			Frontend: *externalIP,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -2188,7 +2187,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 	// 	upsert2ndWanted[externalIP.Hash()] = loadbalancer.SVC{
 	// 		Type:     loadbalancer.SVCTypeExternalIPs,
 	// 		Frontend: *externalIP,
-	// 		Backends: []loadbalancer.Backend{
+	// 		Backends: []*loadbalancer.Backend{
 	// 			{
 	// 				L3n4Addr: loadbalancer.L3n4Addr{
 	// 					IP: net.ParseIP("10.0.0.2"),
@@ -2214,7 +2213,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		upsert2ndWanted[externalIP.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeExternalIPs,
 			Frontend: *externalIP,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -2243,7 +2242,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		upsert2ndWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -2271,7 +2270,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 	// 	upsert2ndWanted[nodePort.Hash()] = loadbalancer.SVC{
 	// 		Type:     loadbalancer.SVCTypeNodePort,
 	// 		Frontend: *nodePort,
-	// 		Backends: []loadbalancer.Backend{
+	// 		Backends: []*loadbalancer.Backend{
 	// 			{
 	// 				L3n4Addr: loadbalancer.L3n4Addr{
 	// 					IP: net.ParseIP("10.0.0.2"),
@@ -2297,7 +2296,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		upsert2ndWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -2326,7 +2325,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		clusterIP1.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP1,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -2355,7 +2354,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		// clusterIP2.Hash(): {
 		// 	Type:     loadbalancer.SVCTypeClusterIP,
 		// 	Frontend: *clusterIP2,
-		// 	Backends: []loadbalancer.Backend{
+		// 	Backends: []*loadbalancer.Backend{
 		// 		{
 		// 			L3n4Addr: loadbalancer.L3n4Addr{
 		// 				IP: net.ParseIP("10.0.0.2"),
@@ -2379,7 +2378,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		clusterIP3.Hash(): {
 			Type:     loadbalancer.SVCTypeClusterIP,
 			Frontend: *clusterIP3,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -2408,7 +2407,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		upsert3rdWanted[externalIP.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeExternalIPs,
 			Frontend: *externalIP,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -2436,7 +2435,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 	// 	upsert3rdWanted[externalIP.Hash()] = loadbalancer.SVC{
 	// 		Type:     loadbalancer.SVCTypeExternalIPs,
 	// 		Frontend: *externalIP,
-	// 		Backends: []loadbalancer.Backend{
+	// 		Backends: []*loadbalancer.Backend{
 	// 			{
 	// 				L3n4Addr: loadbalancer.L3n4Addr{
 	// 					IP: net.ParseIP("10.0.0.2"),
@@ -2462,7 +2461,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		upsert3rdWanted[externalIP.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeExternalIPs,
 			Frontend: *externalIP,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -2491,7 +2490,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		upsert3rdWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-udp-80",
 					L3n4Addr: loadbalancer.L3n4Addr{
@@ -2519,7 +2518,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 	// 	upsert3rdWanted[nodePort.Hash()] = loadbalancer.SVC{
 	// 		Type:     loadbalancer.SVCTypeNodePort,
 	// 		Frontend: *nodePort,
-	// 		Backends: []loadbalancer.Backend{
+	// 		Backends: []*loadbalancer.Backend{
 	// 			{
 	// 				L3n4Addr: loadbalancer.L3n4Addr{
 	// 					IP: net.ParseIP("10.0.0.2"),
@@ -2545,7 +2544,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		upsert3rdWanted[nodePort.Hash()] = loadbalancer.SVC{
 			Type:     loadbalancer.SVCTypeNodePort,
 			Frontend: *nodePort,
-			Backends: []loadbalancer.Backend{
+			Backends: []*loadbalancer.Backend{
 				{
 					FEPortName: "port-tcp-81",
 					L3n4Addr: loadbalancer.L3n4Addr{

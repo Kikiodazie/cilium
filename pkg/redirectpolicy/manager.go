@@ -532,16 +532,18 @@ func (rpm *Manager) upsertService(config *LRPConfig, frontendMapping *feMapping)
 		L3n4Addr: *frontendMapping.feAddr,
 		ID:       lb.ID(0),
 	}
-	backendAddrs := make([]lb.Backend, 0, len(frontendMapping.podBackends))
+	backendAddrs := make([]*lb.Backend, 0, len(frontendMapping.podBackends))
 	for _, be := range frontendMapping.podBackends {
-		backendAddrs = append(backendAddrs, lb.Backend{
+		backendAddrs = append(backendAddrs, &lb.Backend{
 			NodeName: nodeTypes.GetName(),
 			L3n4Addr: be.L3n4Addr,
 		})
 	}
 	p := &lb.SVC{
-		Name:          config.id.Name + localRedirectSvcStr,
-		Namespace:     config.id.Namespace,
+		Name: lb.ServiceName{
+			Name:      config.id.Name + localRedirectSvcStr,
+			Namespace: config.id.Namespace,
+		},
 		Type:          lb.SVCTypeLocalRedirect,
 		Frontend:      frontendAddr,
 		Backends:      backendAddrs,

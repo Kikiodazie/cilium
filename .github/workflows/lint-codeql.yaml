@@ -22,17 +22,10 @@ jobs:
     outputs:
       go-changes: ${{ steps.go-changes.outputs.src }}
     steps:
-      - name: Checkout code
-        if: ${{ !github.event.pull_request }}
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
-        with:
-          persist-credentials: false
       - name: Check code changes
         uses: dorny/paths-filter@b2feaf19c27470162a626bd6fa8438ae5b263721
         id: go-changes
         with:
-          base: ${{ github.event.pull_request.base.sha }}
-          ref: ${{ github.event.pull_request.head.sha }}
           filters: |
             src:
               - .github/workflows/lint-codeql.yaml
@@ -53,8 +46,8 @@ jobs:
         persist-credentials: false
         fetch-depth: 1
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@3f62b754e23e0dd60f91b744033e1dc1654c0ec6
+      uses: github/codeql-action/init@0c670bbf0414f39666df6ce8e718ec5662c21e03
       with:
         languages: go
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@3f62b754e23e0dd60f91b744033e1dc1654c0ec6
+      uses: github/codeql-action/analyze@0c670bbf0414f39666df6ce8e718ec5662c21e03

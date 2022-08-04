@@ -24,9 +24,10 @@ GOFILES_EVAL := $(subst _$(ROOT_DIR)/,,$(shell $(GO_LIST) -find -e ./...))
 GOFILES ?= $(GOFILES_EVAL)
 TESTPKGS_EVAL := $(subst github.com/cilium/cilium/,,$(shell echo $(GOFILES) | \
 		sed 's/ /\n\//g' | \
-		grep -v '/api/v1\|/vendor\|/contrib\|/test' | \
+		grep -Pv '(/api/v1|/vendor|/contrib|/test$$|/test/(?!control-plane))' | \
 		sed 's/^\///g')) \
 	test/helpers/logutils
+
 TESTPKGS ?= $(TESTPKGS_EVAL)
 GOLANG_SRCFILES := $(shell for pkg in $(subst github.com/cilium/cilium/,,$(GOFILES)); do find $$pkg -name *.go -print; done | grep -v vendor | sort | uniq)
 
@@ -40,8 +41,6 @@ BENCH_EVAL := "."
 BENCH ?= $(BENCH_EVAL)
 BENCHFLAGS_EVAL := -bench=$(BENCH) -run=^$ -benchtime=10s
 BENCHFLAGS ?= $(BENCHFLAGS_EVAL)
-# Level of logs emitted to console during unit test runs
-LOGLEVEL ?= "error"
 SKIP_VET ?= "false"
 SKIP_KVSTORES ?= "false"
 SKIP_K8S_CODE_GEN_CHECK ?= "true"
@@ -115,9 +114,9 @@ define generate_k8s_protobuf
 	    --go-header-file "$(PWD)/hack/custom-boilerplate.go.txt"
 endef
 
-build: $(SUBDIRS) ## Builds all the components for Cilium by executing make in the respective sub directories.
+build: check-sources $(SUBDIRS) ## Builds all the components for Cilium by executing make in the respective sub directories.
 
-build-container: ## Builds components required for cilium-agent container.
+build-container: check-sources ## Builds components required for cilium-agent container.
 	for i in $(SUBDIRS_CILIUM_CONTAINER); do $(MAKE) $(SUBMAKEOPTS) -C $$i all; done
 
 $(SUBDIRS): force ## Execute default make target(make all) for the provided subdirectory.
@@ -189,7 +188,6 @@ init-coverage: ## Initialize converage report for Cilium integration-tests.
 
 integration-tests: GO_TAGS_FLAGS+=integration_tests
 integration-tests: start-kvstores ## Runs all integration-tests for Cilium.
-	$(QUIET) $(MAKE) $(SUBMAKEOPTS) -C tools/maptool/
 	$(QUIET) $(MAKE) $(SUBMAKEOPTS) -C test/bpf/
 ifeq ($(SKIP_VET),"false")
 	$(MAKE) govet
@@ -407,6 +405,7 @@ generate-k8s-api: ## Generate Cilium k8s API client, deepcopy and deepequal Go s
 	maps:policymap\
 	maps:signalmap\
 	maps:sockmap\
+	maps:srv6map\
 	maps:tunnel\
 	maps:vtep\
 	node:types\
@@ -456,6 +455,7 @@ govet: ## Run govet on Go source files in the repository.
     ./api/... \
     ./bugtool/... \
     ./cilium/... \
+    ./clustermesh-apiserver/... \
     ./cilium-health/... \
     ./daemon/... \
     ./hubble-relay/... \
@@ -464,7 +464,9 @@ govet: ## Run govet on Go source files in the repository.
     ./plugins/... \
     ./proxylib/... \
     ./test/. \
+    ./test/bpf_tests/... \
     ./test/config/... \
+    ./test/control-plane/... \
     ./test/ginkgo-ext/... \
     ./test/helpers/... \
     ./test/runtime/... \
@@ -479,10 +481,7 @@ else
 	$(QUIET) $(CONTAINER_ENGINE) run --rm -v `pwd`:/app -w /app docker.io/golangci/golangci-lint:v$(GOLANGCILINT_WANT_VERSION)@$(GOLANGCILINT_IMAGE_SHA) golangci-lint run
 endif
 
-bpf-mock-lint: ## Check if the helper headers in bpf/mock are up-to-date.
-	$(QUIET) $(MAKE) $(SUBMAKEOPTS) -C bpf/mock/ check_helper_headers
-
-lint: golangci-lint bpf-mock-lint ## Run golangci-lint and bpf-mock linters.
+lint: golangci-lint ## Run golangci-lint and bpf-mock linters.
 
 logging-subsys-field: ## Validate logrus subsystem field for logs in Go source code.
 	@$(ECHO_CHECK) contrib/scripts/check-logging-subsys-field.sh
@@ -549,6 +548,10 @@ ifeq ($(SKIP_CUSTOMVET_CHECK),"false")
 endif
 	@$(ECHO_CHECK) contrib/scripts/rand-check.sh
 	$(QUIET) contrib/scripts/rand-check.sh
+
+check-sources:
+	@$(ECHO_CHECK) pkg/datapath/loader/check-sources.sh
+	$(QUIET) pkg/datapath/loader/check-sources.sh
 
 pprof-heap: ## Get Go pprof heap profile.
 	$(QUIET)$(GO) tool pprof http://localhost:6060/debug/pprof/heap
@@ -645,5 +648,5 @@ help: ## Display help for the Makefile, from https://www.thapaliya.com/en/writin
 	$(call print_help_line,"docker-operator-*-image","Build platform specific cilium-operator images(alibabacloud, aws, azure, generic)")
 	$(call print_help_line,"docker-*-image-unstripped","Build unstripped version of above docker images(cilium, hubble-relay, operator etc.)")
 
-.PHONY: help clean clean-container dev-doctor force generate-api generate-health-api generate-operator-api generate-hubble-api install licenses-all veryclean
+.PHONY: help clean clean-container dev-doctor force generate-api generate-health-api generate-operator-api generate-hubble-api install licenses-all veryclean check-sources
 force :;

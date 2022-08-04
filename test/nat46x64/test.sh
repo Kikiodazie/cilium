@@ -14,7 +14,7 @@ HELM_CHART_DIR=${3:-/vagrant/install/kubernetes/cilium}
 #
 # The LB cilium does not connect to the kube-apiserver. For now we use Kind
 # just to create Docker-in-Docker containers.
-kind create cluster --config kind-config.yaml
+kind create cluster --config kind-config.yaml --image=brb0/kindest-node:v1.23.3-ubuntu-22.04
 
 # Install Cilium as standalone L4LB: tc/Maglev/SNAT
 helm install cilium ${HELM_CHART_DIR} \
@@ -386,5 +386,8 @@ kubectl -n kube-system exec "${CILIUM_POD_NAME}" -- cilium bpf recorder list
 kubectl -n kube-system exec "${CILIUM_POD_NAME}" -- cilium recorder delete 1
 kubectl -n kube-system exec "${CILIUM_POD_NAME}" -- cilium recorder delete 2
 kubectl -n kube-system exec "${CILIUM_POD_NAME}" -- cilium recorder list
+
+# cleanup
+kind delete cluster
 
 echo "YAY!"

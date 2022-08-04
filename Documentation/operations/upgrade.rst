@@ -159,7 +159,7 @@ specifying the equivalent options as used for the initial deployment, either by
 specifying a them at the command line or by committing the values to a YAML
 file.
 
-.. include:: ../gettingstarted/k8s-install-download-release.rst
+.. include:: ../installation/k8s-install-download-release.rst
 
 To minimize datapath disruption during the upgrade, the
 ``upgradeCompatibility`` option should be set to the initial Cilium
@@ -286,16 +286,16 @@ The table below lists suggested upgrade transitions, from a specified current
 version running in a cluster to a specified target version. If a specific
 combination is not listed in the table below, then it may not be safe. In that
 case, consider performing incremental upgrades between versions (e.g. upgrade
-from ``1.9.x`` to ``1.10.y`` first, and to ``1.11.z`` only afterwards).
+from ``1.10.x`` to ``1.11.y`` first, and to ``1.12.z`` only afterwards).
 
 +-----------------------+-----------------------+-------------------------+---------------------------+
 | Current version       | Target version        | L3/L4 impact            | L7 impact                 |
 +=======================+=======================+=========================+===========================+
+| ``1.11.x``            | ``1.12.y``            | Minimal to None         | Clients must reconnect[1] |
++-----------------------+-----------------------+-------------------------+---------------------------+
 | ``1.10.x``            | ``1.11.y``            | Minimal to None         | Clients must reconnect[1] |
 +-----------------------+-----------------------+-------------------------+---------------------------+
 | ``1.9.x``             | ``1.10.y``            | Minimal to None         | Clients must reconnect[1] |
-+-----------------------+-----------------------+-------------------------+---------------------------+
-| ``1.8.x``             | ``1.9.y``             | Minimal to None         | Clients must reconnect[1] |
 +-----------------------+-----------------------+-------------------------+---------------------------+
 
 Annotations:
@@ -369,11 +369,16 @@ New Options
 Removed Options
 ~~~~~~~~~~~~~~~
 
+* IPVLAN support has been removed following the deprecation in v1.11.
+  :ref:`eBPF_Host_Routing` should provide the same performance benefits.
 * The endpoint config option ``Conntrack`` was removed. The option was used
   to disable the stateful connection tracking for the endpoint. However, many
   Cilium features depend on the tracking. Therefore the option to disable the
   connection tracking was removed. In addition, we deprecated the
   ``disable-conntrack`` option and made it non-operational. It will be removed
+  in version 1.13.
+* The ``enable-host-reachable-services`` option (``.hostServices`` in Helm) was
+  renamed to ``bpf-lb-sock`` (``.socketLB`` in Helm), and will be removed
   in version 1.13.
 * The ``native-routing-cidr`` option deprecated in 1.11 in favor of
   ``ipv4-native-routing-cidr`` has been removed.
@@ -791,8 +796,8 @@ The cilium preflight manifest requires etcd support and can be built with:
       --set agent.enabled=false \
       --set config.enabled=false \
       --set operator.enabled=false \
-      --set global.etcd.enabled=true \
-      --set global.etcd.ssl=true \
+      --set etcd.enabled=true \
+      --set etcd.ssl=true \
       > cilium-preflight.yaml
     kubectl create -f cilium-preflight.yaml
 
@@ -802,7 +807,7 @@ Example migration
 
 .. code-block:: shell-session
 
-      $ kubectl exec -n kube-system cilium-preflight-1234 -- cilium preflight migrate-identity
+      $ kubectl exec -n kube-system cilium-pre-flight-check-1234 -- cilium preflight migrate-identity
       INFO[0000] Setting up kvstore client
       INFO[0000] Connecting to etcd server...                  config=/var/lib/cilium/etcd-config.yml endpoints="[https://192.168.60.11:2379]" subsys=kvstore
       INFO[0000] Setting up kubernetes client
@@ -838,6 +843,13 @@ Example migration
   .. code-block:: shell-session
 
         cilium preflight migrate-identity --k8s-kubeconfig-path /var/lib/cilium/cilium.kubeconfig --kvstore etcd --kvstore-opt etcd.config=/var/lib/cilium/etcd-config.yml
+
+Once the migration is complete, confirm the endpoint identities match by listing the endpoints stored in CRDs and in etcd:
+
+.. code-block:: shell-session
+
+      $ kubectl get ciliumendpoints -A # new CRD-backed endpoints
+      $ kubectl exec -n kube-system cilium-1234 -- cilium endpoint list # existing etcd-backed endpoints
 
 Clearing CRD identities
 ~~~~~~~~~~~~~~~~~~~~~~~

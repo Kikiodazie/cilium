@@ -13,14 +13,25 @@
  */
 #include "lib/utils.h"
 
+#ifndef NODE_MAC
 DEFINE_MAC(NODE_MAC, 0xde, 0xad, 0xbe, 0xef, 0xc0, 0xde);
 #define NODE_MAC fetch_mac(NODE_MAC)
+#endif
 
+#ifndef ROUTER_IP
 DEFINE_IPV6(ROUTER_IP, 0xbe, 0xef, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0x1, 0x0, 0x1, 0x0, 0x0);
+#endif
+
 #define HOST_IFINDEX 1
 #define CILIUM_IFINDEX 1
 #define NATIVE_DEV_MAC_BY_IFINDEX(_) { .addr = { 0xce, 0x72, 0xa7, 0x03, 0x88, 0x56 } }
+
+#ifndef HOST_IP
 DEFINE_IPV6(HOST_IP, 0xbe, 0xef, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0xa, 0x0, 0x2, 0xf, 0xff, 0xff);
+#endif
+
+DEFINE_U32(SECCTX_FROM_IPCACHE, 1);
+#define SECCTX_FROM_IPCACHE fetch_u32(SECCTX_FROM_IPCACHE)
 
 #define TUNNEL_PORT 8472
 
@@ -85,6 +96,13 @@ DEFINE_IPV6(HOST_IP, 0xbe, 0xef, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0xa, 0x
 #endif /* ENABLE_IPV6 */
 
 #define EGRESS_POLICY_MAP test_cilium_egress_gw_policy_v4
+#define SRV6_VRF_MAP4 test_cilium_srv6_vrf_v4
+#define SRV6_VRF_MAP6 test_cilium_srv6_vrf_v6
+#define SRV6_POLICY_MAP4 test_cilium_srv6_policy_v4
+#define SRV6_POLICY_MAP6 test_cilium_srv6_policy_v6
+#define SRV6_SID_MAP test_cilium_srv6_sid
+#define SRV6_STATE_MAP4 test_cilium_srv6_state4
+#define SRV6_STATE_MAP6 test_cilium_srv6_state6
 #define ENDPOINTS_MAP test_cilium_lxc
 #define EVENTS_MAP test_cilium_events
 #define SIGNAL_MAP test_cilium_signals
@@ -129,6 +147,10 @@ DEFINE_IPV6(HOST_IP, 0xbe, 0xef, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0xa, 0x
 #define POLICY_MAP_SIZE 16384
 #define IPCACHE_MAP_SIZE 512000
 #define EGRESS_POLICY_MAP_SIZE 16384
+#define SRV6_VRF_MAP_SIZE 16384
+#define SRV6_POLICY_MAP_SIZE 16384
+#define SRV6_SID_MAP_SIZE 16384
+#define SRV6_STATE_MAP_SIZE 16384
 #define POLICY_PROG_MAP_SIZE ENDPOINTS_MAP_SIZE
 #define IPV4_FRAG_DATAGRAMS_MAP test_cilium_ipv4_frag_datagrams
 #define CILIUM_IPV4_FRAG_MAP_MAX_ENTRIES 8192
@@ -186,6 +208,7 @@ DEFINE_IPV6(HOST_IP, 0xbe, 0xef, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0xa, 0x
 #ifndef LB_SELECTION
 # define LB_SELECTION_RANDOM	1
 # define LB_SELECTION_MAGLEV	2
+# define LB_SELECTION_FIRST	3
 # define LB_SELECTION		LB_SELECTION_RANDOM
 #endif
 

@@ -19,7 +19,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/vishvananda/netlink"
+	"go.uber.org/fx"
 	"google.golang.org/grpc"
 
 	"github.com/cilium/cilium/api/v1/server"
@@ -32,7 +32,6 @@ import (
 	"github.com/cilium/cilium/pkg/common"
 	"github.com/cilium/cilium/pkg/components"
 	"github.com/cilium/cilium/pkg/controller"
-	"github.com/cilium/cilium/pkg/datapath/connector"
 	"github.com/cilium/cilium/pkg/datapath/iptables"
 	"github.com/cilium/cilium/pkg/datapath/link"
 	linuxdatapath "github.com/cilium/cilium/pkg/datapath/linux"
@@ -125,7 +124,8 @@ var (
 			bootstrapStats.earlyInit.Start()
 			initEnv(cmd)
 			bootstrapStats.earlyInit.End(true)
-			runDaemon()
+
+			runApp()
 		},
 	}
 
@@ -138,20 +138,9 @@ var (
 func Execute() {
 	bootstrapStats.overall.Start()
 
-	interruptCh := cleaner.registerSigHandler()
 	if err := RootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
-	}
-	<-interruptCh
-}
-
-func skipInit(basePath string) bool {
-	switch basePath {
-	case components.CiliumAgentName, components.CiliumDaemonTestName:
-		return false
-	default:
-		return true
 	}
 }
 
@@ -173,11 +162,6 @@ func setupSleepBeforeFatal() {
 }
 
 func initializeFlags() {
-	if skipInit(path.Base(os.Args[0])) {
-		log.Debug("Skipping preparation of cilium-agent environment")
-		return
-	}
-
 	cobra.OnInitialize(option.InitConfig(RootCmd, "Cilium", "ciliumd"))
 
 	// Reset the help function to also exit, as we block elsewhere in interrupts
@@ -295,10 +279,6 @@ func initializeFlags() {
 	flags.String(option.DatapathMode, defaults.DatapathMode, "Datapath mode name")
 	option.BindEnv(option.DatapathMode)
 
-	flags.StringP(option.IpvlanMasterDevice, "", "undefined", "Device facing external network acting as ipvlan master")
-	option.BindEnv(option.IpvlanMasterDevice)
-	flags.MarkDeprecated(option.IpvlanMasterDevice, "This option will be removed in v1.12")
-
 	flags.Bool(option.DisableConntrack, false, "Disable connection tracking")
 	option.BindEnv(option.DisableConntrack)
 	flags.MarkDeprecated(option.DisableConntrack, "This option is no-op and it will be removed in v1.13")
@@ -330,6 +310,10 @@ func initializeFlags() {
 
 	flags.Bool(option.EnableIPv6NDPName, defaults.EnableIPv6NDP, "Enable IPv6 NDP support")
 	option.BindEnv(option.EnableIPv6NDPName)
+
+	flags.Bool(option.EnableSRv6, defaults.EnableSRv6, "Enable SRv6 support (beta)")
+	flags.MarkHidden(option.EnableSRv6)
+	option.BindEnv(option.EnableSRv6)
 
 	flags.String(option.IPv6MCastDevice, "", "Device that joins a Solicited-Node multicast group for IPv6")
 	option.BindEnv(option.IPv6MCastDevice)
@@ -365,8 +349,13 @@ func initializeFlags() {
 	flags.Bool(option.BPFSocketLBHostnsOnly, false, "Skip socket LB for services when inside a pod namespace, in favor of service LB at the pod interface. Socket LB is still used when in the host namespace. Required by service mesh (e.g., Istio, Linkerd).")
 	option.BindEnv(option.BPFSocketLBHostnsOnly)
 
+	flags.Bool(option.EnableSocketLB, false, "Enable socket-based LB for E/W traffic")
+	option.BindEnv(option.EnableSocketLB)
+
 	flags.Bool(option.EnableHostReachableServices, false, "Enable reachability of services for host applications")
 	option.BindEnv(option.EnableHostReachableServices)
+	flags.MarkDeprecated(option.EnableHostReachableServices,
+		fmt.Sprintf("This option will be removed in v1.13. Use --%s instead", option.EnableSocketLB))
 
 	flags.StringSlice(option.HostReachableServicesProtos, []string{option.HostServicesTCP, option.HostServicesUDP}, "Only enable reachability of services for host applications for specific protocols")
 	option.BindEnv(option.HostReachableServicesProtos)
@@ -1365,61 +1354,15 @@ func initEnv(cmd *cobra.Command) {
 
 	switch option.Config.DatapathMode {
 	case datapathOption.DatapathModeVeth:
-		if name := option.Config.IpvlanMasterDevice; name != "undefined" {
-			log.WithField(logfields.IpvlanMasterDevice, name).
-				Fatal("ipvlan master device cannot be set in the 'veth' datapath mode")
-		}
 		if option.Config.Tunnel == "" {
 			option.Config.Tunnel = option.TunnelVXLAN
-		}
-	case datapathOption.DatapathModeIpvlan:
-		if option.Config.Tunnel != "" && option.Config.TunnelingEnabled() {
-			log.WithField(logfields.Tunnel, option.Config.Tunnel).
-				Fatal("tunnel cannot be set in the 'ipvlan' datapath mode")
-		}
-		if len(option.Config.GetDevices()) != 0 {
-			log.WithField(logfields.Devices, option.Config.GetDevices()).
-				Fatal("devices cannot be set in the 'ipvlan' datapath mode")
-		}
-		if option.Config.EnableIPSec {
-			log.Fatal("Currently ipsec cannot be used in the 'ipvlan' datapath mode.")
-		}
-
-		option.Config.Tunnel = option.TunnelDisabled
-		// We disallow earlier command line combination of --device with
-		// --datapath-mode ipvlan. But given all the remaining logic is
-		// shared with option.Config.Devices, override it here internally
-		// with the specified ipvlan master device. Reason to have a
-		// separate, more specific command line parameter here and in
-		// the swagger API is that in future we might deprecate --device
-		// parameter with e.g. some auto-detection mechanism, thus for
-		// ipvlan it is desired to have a separate one, see PR #6608.
-		iface := option.Config.IpvlanMasterDevice
-		if iface == "undefined" {
-			log.WithField(logfields.IpvlanMasterDevice, iface).
-				Fatal("ipvlan master device must be specified in the 'ipvlan' datapath mode")
-		}
-		option.Config.SetDevices([]string{iface})
-		link, err := netlink.LinkByName(iface)
-		if err != nil {
-			log.WithError(err).WithField(logfields.IpvlanMasterDevice, iface).
-				Fatal("Cannot find device interface")
-		}
-		option.Config.Ipvlan.MasterDeviceIndex = link.Attrs().Index
-		option.Config.Ipvlan.OperationMode = connector.OperationModeL3
-		if option.Config.InstallIptRules {
-			option.Config.Ipvlan.OperationMode = connector.OperationModeL3S
-		} else {
-			log.WithFields(logrus.Fields{
-				logfields.URL: "https://github.com/cilium/cilium/issues/12879",
-			}).Warn("IPtables rule configuration has been disabled. This may affect policy and forwarding, see the URL for more details.")
 		}
 	case datapathOption.DatapathModeLBOnly:
 		log.Info("Running in LB-only mode")
 		option.Config.LoadBalancerPMTUDiscovery =
 			option.Config.NodePortAcceleration != option.NodePortAccelerationDisabled
 		option.Config.KubeProxyReplacement = option.KubeProxyReplacementPartial
-		option.Config.EnableHostReachableServices = true
+		option.Config.EnableSocketLB = true
 		option.Config.EnableHostPort = false
 		option.Config.EnableNodePort = true
 		option.Config.EnableExternalIPs = true
@@ -1462,6 +1405,15 @@ func initEnv(cmd *cobra.Command) {
 
 	initClockSourceOption()
 	initSockmapOption()
+
+	if option.Config.EnableSRv6 {
+		if !option.Config.EnableIPv6 {
+			log.Fatalf("SRv6 requires IPv6.")
+		}
+		if !probes.NewProbeManager().GetMapTypes().HaveLruHashMapType {
+			log.Fatalf("SRv6 requires support for BPF LRU maps (Linux 4.10 or later).")
+		}
+	}
 
 	if option.Config.EnableHostFirewall {
 		if option.Config.EnableIPSec {
@@ -1662,7 +1614,7 @@ func (d *Daemon) initKVStore() {
 	}
 }
 
-func runDaemon() {
+func daemonModule(ctx context.Context, cleaner *daemonCleanup, shutdowner fx.Shutdowner) (*Daemon, error) {
 	datapathConfig := linuxdatapath.DatapathConfiguration{
 		HostDevice: defaults.HostDevice,
 		ProcFs:     option.Config.ProcFs,
@@ -1673,7 +1625,7 @@ func runDaemon() {
 	option.Config.RunMonitorAgent = true
 
 	if err := enableIPForwarding(); err != nil {
-		log.WithError(err).Fatal("Error when enabling sysctl parameters")
+		return nil, fmt.Errorf("enabling IP forwarding via sysctl failed: %w", err)
 	}
 
 	iptablesManager := &iptables.IptablesManager{}
@@ -1683,10 +1635,10 @@ func runDaemon() {
 	if option.Config.EnableWireguard {
 		switch {
 		case option.Config.EnableIPSec:
-			log.Fatalf("Wireguard (--%s) cannot be used with IPSec (--%s)",
+			return nil, fmt.Errorf("Wireguard (--%s) cannot be used with IPSec (--%s)",
 				option.EnableWireguard, option.EnableIPSecName)
 		case option.Config.EnableL7Proxy:
-			log.Fatalf("Wireguard (--%s) is not compatible with L7 proxy (--%s)",
+			return nil, fmt.Errorf("Wireguard (--%s) is not compatible with L7 proxy (--%s)",
 				option.EnableWireguard, option.EnableL7Proxy)
 		}
 
@@ -1694,7 +1646,7 @@ func runDaemon() {
 		privateKeyPath := filepath.Join(option.Config.StateDir, wireguardTypes.PrivKeyFilename)
 		wgAgent, err = wireguard.NewAgent(privateKeyPath)
 		if err != nil {
-			log.WithError(err).Fatal("Failed to initialize wireguard")
+			return nil, fmt.Errorf("failed to initialize wireguard: %w", err)
 		}
 
 		cleaner.cleanupFuncs.Add(func() {
@@ -1708,30 +1660,23 @@ func runDaemon() {
 	if k8s.IsEnabled() {
 		bootstrapStats.k8sInit.Start()
 		if err := k8s.Init(option.Config); err != nil {
-			log.WithError(err).Fatal("Unable to initialize Kubernetes subsystem")
+			return nil, fmt.Errorf("unable to initialize Kubernetes subsystem: %w", err)
 		}
 		bootstrapStats.k8sInit.End(true)
 	}
 
-	ctx, cancel := context.WithCancel(server.ServerCtx)
-	d, restoredEndpoints, err := NewDaemon(ctx, cancel,
+	d, restoredEndpoints, err := NewDaemon(ctx, cleaner,
 		WithDefaultEndpointManager(ctx, endpoint.CheckHealth),
 		linuxdatapath.NewDatapath(datapathConfig, iptablesManager, wgAgent))
 	if err != nil {
-		select {
-		case <-server.ServerCtx.Done():
-			log.WithError(err).Debug("Error while creating daemon")
-		default:
-			log.WithError(err).Fatal("Error while creating daemon")
-		}
-		return
+		return nil, fmt.Errorf("daemon creation failed: %w", err)
 	}
 
 	// This validation needs to be done outside of the agent until
 	// datapath.NodeAddressing is used consistently across the code base.
 	log.Info("Validating configured node address ranges")
 	if err := node.ValidatePostInit(); err != nil {
-		log.WithError(err).Fatal("postinit failed")
+		return nil, fmt.Errorf("postinit failed: %w", err)
 	}
 
 	bootstrapStats.enableConntrack.Start()
@@ -1763,14 +1708,14 @@ func runDaemon() {
 			d.ctx, d, d, d.ipcache, d.l7Proxy, d.identityAllocator,
 			"Create host endpoint", nodeTypes.GetName(),
 		); err != nil {
-			log.WithError(err).Fatal("Unable to create host endpoint")
+			return nil, fmt.Errorf("unable to create host endpoint: %w", err)
 		}
 	}
 
 	if option.Config.EnableIPMasqAgent {
 		ipmasqAgent, err := ipmasq.NewIPMasqAgent(option.Config.IPMasqAgentConfigPath)
 		if err != nil {
-			log.WithError(err).Fatal("Failed to create ip-masq-agent")
+			return nil, fmt.Errorf("failed to create ipmasq agent: %w", err)
 		}
 		ipmasqAgent.Start()
 	}
@@ -1806,7 +1751,8 @@ func runDaemon() {
 			}
 		}()
 		d.endpointManager.Subscribe(d)
-		defer d.endpointManager.Unsubscribe(d)
+		// Add the endpoint manager unsubscribe as the last step in cleanup
+		defer cleaner.cleanupFuncs.Add(func() { d.endpointManager.Unsubscribe(d) })
 	}
 
 	// Migrating the ENI datapath must happen before the API is served to
@@ -1836,13 +1782,19 @@ func runDaemon() {
 
 	bootstrapStats.healthCheck.Start()
 	if option.Config.EnableHealthChecking {
-		d.initHealth()
+		d.initHealth(cleaner)
 	}
 	bootstrapStats.healthCheck.End(true)
 
-	d.startStatusCollector()
+	d.startStatusCollector(cleaner)
 
-	metricsErrs := initMetrics()
+	go func(errs <-chan error) {
+		err := <-errs
+		if err != nil {
+			log.WithError(err).Error("Cannot start metrics server")
+			shutdowner.Shutdown()
+		}
+	}(initMetrics())
 
 	d.startAgentHealthHTTPService()
 	if option.Config.KubeProxyReplacementHealthzBindAddr != "" {
@@ -1857,7 +1809,7 @@ func runDaemon() {
 	srv.SocketPath = option.Config.SocketPath
 	srv.ReadTimeout = apiTimeout
 	srv.WriteTimeout = apiTimeout
-	defer srv.Shutdown()
+	cleaner.cleanupFuncs.Add(func() { srv.Shutdown() })
 
 	srv.ConfigureAPI()
 	bootstrapStats.initAPI.End(true)
@@ -1890,7 +1842,7 @@ func runDaemon() {
 		}
 		log.Info("Initializing BGP Control Plane")
 		if err := d.instantiateBGPControlPlane(d.ctx); err != nil {
-			log.WithError(err).Fatal("Error returned when instantiating BGP control plane")
+			return nil, fmt.Errorf("failed to initialize BGP control plane: %w", err)
 		}
 	}
 
@@ -1900,20 +1852,24 @@ func runDaemon() {
 	if option.Config.WriteCNIConfigurationWhenReady != "" {
 		input, err := os.ReadFile(option.Config.ReadCNIConfiguration)
 		if err != nil {
-			log.WithError(err).Fatal("Unable to read CNI configuration file")
+			return nil, fmt.Errorf("unable to read cni configuration file: %w", err)
 		}
 
 		if err = os.WriteFile(option.Config.WriteCNIConfigurationWhenReady, input, 0644); err != nil {
-			log.WithError(err).Fatalf("Unable to write CNI configuration file to %s", option.Config.WriteCNIConfigurationWhenReady)
+			return nil, fmt.Errorf("unable to write CNI configuration file to %s: %w",
+				option.Config.WriteCNIConfigurationWhenReady,
+				err)
 		} else {
 			log.Infof("Wrote CNI configuration file to %s", option.Config.WriteCNIConfigurationWhenReady)
 		}
 	}
 
-	errs := make(chan error, 1)
-
 	go func() {
-		errs <- srv.Serve()
+		err := srv.Serve()
+		if err != nil {
+			log.WithError(err).Error("Error returned from non-returning Serve() call")
+			shutdowner.Shutdown()
+		}
 	}()
 
 	bootstrapStats.overall.End(true)
@@ -1930,16 +1886,7 @@ func runDaemon() {
 		log.WithError(err).Error("Unable to store Viper's configuration")
 	}
 
-	select {
-	case err := <-metricsErrs:
-		if err != nil {
-			log.WithError(err).Fatal("Cannot start metrics server")
-		}
-	case err := <-errs:
-		if err != nil {
-			log.WithError(err).Fatal("Error returned from non-returning Serve() call")
-		}
-	}
+	return d, nil
 }
 
 func (d *Daemon) instantiateBGPControlPlane(ctx context.Context) error {

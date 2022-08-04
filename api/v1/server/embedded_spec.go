@@ -1990,9 +1990,6 @@ func init() {
           "description": "Configured IPAM mode",
           "type": "string"
         },
-        "ipvlanConfiguration": {
-          "$ref": "#/definitions/IpvlanConfiguration"
-        },
         "k8s-configuration": {
           "type": "string"
         },
@@ -2037,8 +2034,7 @@ func init() {
       "description": "Datapath mode",
       "type": "string",
       "enum": [
-        "veth",
-        "ipvlan"
+        "veth"
       ]
     },
     "DebugInfo": {
@@ -2898,24 +2894,6 @@ func init() {
         }
       }
     },
-    "IpvlanConfiguration": {
-      "description": "Setup for datapath when operating in ipvlan mode.",
-      "type": "object",
-      "properties": {
-        "masterDeviceIndex": {
-          "description": "Workload facing ipvlan master device ifindex.",
-          "type": "integer"
-        },
-        "operationMode": {
-          "description": "Mode in which ipvlan setup operates.",
-          "type": "string",
-          "enum": [
-            "L3",
-            "L3S"
-          ]
-        }
-      }
-    },
     "K8sStatus": {
       "description": "Status of Kubernetes integration\n\n+k8s:deepcopy-gen=true",
       "type": "object",
@@ -3088,6 +3066,15 @@ func init() {
               }
             },
             "sessionAffinity": {
+              "description": "\n\n+k8s:deepcopy-gen=true",
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "socketLB": {
               "description": "\n\n+k8s:deepcopy-gen=true",
               "type": "object",
               "properties": {
@@ -6541,9 +6528,6 @@ func init() {
           "description": "Configured IPAM mode",
           "type": "string"
         },
-        "ipvlanConfiguration": {
-          "$ref": "#/definitions/IpvlanConfiguration"
-        },
         "k8s-configuration": {
           "type": "string"
         },
@@ -6602,8 +6586,7 @@ func init() {
       "description": "Datapath mode",
       "type": "string",
       "enum": [
-        "veth",
-        "ipvlan"
+        "veth"
       ]
     },
     "DebugInfo": {
@@ -7511,24 +7494,6 @@ func init() {
         }
       }
     },
-    "IpvlanConfiguration": {
-      "description": "Setup for datapath when operating in ipvlan mode.",
-      "type": "object",
-      "properties": {
-        "masterDeviceIndex": {
-          "description": "Workload facing ipvlan master device ifindex.",
-          "type": "integer"
-        },
-        "operationMode": {
-          "description": "Mode in which ipvlan setup operates.",
-          "type": "string",
-          "enum": [
-            "L3",
-            "L3S"
-          ]
-        }
-      }
-    },
     "K8sStatus": {
       "description": "Status of Kubernetes integration\n\n+k8s:deepcopy-gen=true",
       "type": "object",
@@ -7695,6 +7660,15 @@ func init() {
                   "type": "boolean"
                 }
               }
+            },
+            "socketLB": {
+              "description": "\n\n+k8s:deepcopy-gen=true",
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                }
+              }
             }
           }
         },
@@ -7829,6 +7803,15 @@ func init() {
               "type": "boolean"
             }
           }
+        },
+        "socketLB": {
+          "description": "\n\n+k8s:deepcopy-gen=true",
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          }
         }
       }
     },
@@ -7925,6 +7908,15 @@ func init() {
       }
     },
     "KubeProxyReplacementFeaturesSessionAffinity": {
+      "description": "\n\n+k8s:deepcopy-gen=true",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "KubeProxyReplacementFeaturesSocketLB": {
       "description": "\n\n+k8s:deepcopy-gen=true",
       "type": "object",
       "properties": {

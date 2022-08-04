@@ -212,6 +212,12 @@ Users (Alphabetically)
       U: Networking, CiliumNetworkPolicy at L7, kube-proxy replacement, encryption
       L: https://www.cloud-migration.ch/
       Q: @fakod
+      
+     * N: Isovalent
+       D: Cilium is the platform that powers Isovalent’s enterprise networking, observability, and security solutions
+       U: Networking, network policy, observability, cluster mesh, kube-proxy replacement, security, egress gateway, service load balancing, CNI
+       L: https://isovalent.com/product/
+       Q: @BillMulligan
 
     * N: JUMO
       D: JUMO is using Cilium as their CNI plugin for all of their AWS-hosted EKS clusters
@@ -319,6 +325,12 @@ Users (Alphabetically)
       U: ENI networking, L3/L4 policies, FQDN based policy, FQDN filtering
       Q: ungureanuvladvictor
 
+    * N: Plaid Inc
+      D: Plaid is using Cilium as their CNI plugin in self-hosted Kubernetes on AWS.
+      U: CNI, network policies
+      L: [https://plaid.com](https://plaid.com/contact/)
+      Q: @diversario @jandersen-plaid
+
     * N: PlanetScale
       D: PlanetScale is using Cilium as the CNI for its serverless database platform.
       U: Networking (CNI, IPAM, kube-proxy replacement, native routing), Network Security, Cluster Mesh, Load Balancing
@@ -367,6 +379,12 @@ Users (Alphabetically)
       D: Scaleway uses Cilium as the default CNI for Kubernetes Kapsule
       U: Networking, NetworkPolicy, Services
       L: @jtherin @remyleone
+      
+    * N: Schuberg Philis
+      D: Schuberg Philis uses Cilium as CNI for mission critical kubernetes clusters we run for our customers. 
+      U: CNI (instead of amazon-vpc-cni-k8s), DefaultDeny(Zero Trust), Hubble, CiliumNetworkPolicy, CiliumClusterwideNetworkPolicy, EKS
+      L: https://schubergphilis.com/en
+      Q: @stimmerman @shoekstra @mbaumann
 
     * N: SmileDirectClub
       D: SmileDirectClub is using Cilium in manufacturing clusters (self-hosted on vSphere and AWS EC2)
@@ -387,6 +405,11 @@ Users (Alphabetically)
       D: Sphere Knowledge is using Cilium in AWS (self-hosted k8s & EKS)
       U: ENI Networking, Network policies, Service load-balancing, Hubble
       Q: @mvisonneau
+      
+    * N: Spherity 
+      D: Spherity  is using Cilium on AWS EKS 
+      U: CNI/ENI Networking, Network policies, Hubble
+      Q: @solidnerd
 
     * N: Sportradar
       D: Sportradar is using Cilium as their main CNI plugin in AWS (using kops)

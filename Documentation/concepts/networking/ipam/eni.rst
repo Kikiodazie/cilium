@@ -441,6 +441,7 @@ Required Privileges
 The following EC2 privileges are required by the Cilium operator in order to
 perform ENI creation and IP allocation:
 
+ * ``DeleteNetworkInterface``
  * ``DescribeNetworkInterfaces``
  * ``DescribeSubnets``
  * ``DescribeVpcs``
@@ -454,6 +455,10 @@ perform ENI creation and IP allocation:
 If release excess IP enabled:
 
  * ``UnassignPrivateIpAddresses``
+
+If ``--instance-tags-filter`` is used:
+
+ * ``DescribeInstances``
 
 *****************************
 EC2 instance types ENI limits
